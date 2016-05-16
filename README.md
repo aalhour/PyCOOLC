@@ -1,14 +1,14 @@
-# cool_compiler.py
+# PyCOOLC
 
-A compiler for the COOL (Classroom Object Oriented Language) programming language written in Python 3.
+A compiler for the [COOL](https://en.wikipedia.org/wiki/Cool_(programming_language)) programming language, written in Python 3. COOL stands for __C__lassroom __O__bject __O__riented __L__anguage.
 
-# REQUIREMENTS:
+## REQUIREMENTS
+
  * Python >= 3.5.
- * SPIM Assembly Simulator: [Homepage](http://spimsimulator.sourceforge.net), [@SourceForge](https://sourceforge.net/projects/spimsimulator/files/).
+ * SPIM MIPS Assembly Simulator: [Homepage](http://spimsimulator.sourceforge.net), [@SourceForge](https://sourceforge.net/projects/spimsimulator/files/).
  * All Python packages listed in: `requirements.txt`.
 
-# LICENSE:
+## LICENSE
 
 This project is licensed under the [MIT License](LICENSE). All copyrights of the files and documents under the [/docs](/docs) directory belong to their original owners.
-
 
