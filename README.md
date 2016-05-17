@@ -1,6 +1,6 @@
 # PyCOOLC
 
-A compiler for the **[COOL](https://en.wikipedia.org/wiki/Cool_(programming_language))** programming language, written in Python 3. COOL stands for **C**lassroom **O**bject **O**riented **L**anguage.
+A compiler for the **[COOL](https://en.wikipedia.org/wiki/Cool_(programming_language))** programming language, written in Python 3. COOL stands for **C**lassroom **O**bject **O**riented **L**anguage. Many example COOL programs can be found under the [/example_cool_programs](/example_cool_programs) directory.
 
 ## REQUIREMENTS
 
