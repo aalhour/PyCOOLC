@@ -2,7 +2,7 @@
 
 """
 File: lexer.py
-Author: Ahmad Alhour (git.io/aalhour)
+Author: Ahmad Alhour (git.io/aalhour; aalhour.com).
 Date: May 23rd, 2016.
 Description: The Lexer module. Implements lexical analysis and tokenization of COOL programs.
 """
@@ -13,9 +13,11 @@ from ply.lex import TOKEN
 
 
 class PyCoolCLexer(object):
-    def __init__(self):
+    def __init__(self, post_init_build=False):
         self.lexer = None
         self.tokens = []
+        if post_init_build is True:
+            self.build()
 
     @property
     def basic_reserved(self):
@@ -82,7 +84,7 @@ class PyCoolCLexer(object):
     def tokens_list(self):
         """
         List of Cool Syntax Tokens.
-        :return:
+        :return: list.
         """
         return [
             "INTEGER", "STRING", "LPAREN", "RPAREN", "LCBRACE", "RCBRACE", "COLON", "COMMA", "DOT", "SEMICOLON",
@@ -114,7 +116,7 @@ class PyCoolCLexer(object):
     string_rule     = r'\"(\\.|[^"])*\"'
     identifier_rule = r'[a-zA-Z_][a-zA-Z_0-9]*'
 
-    # COMPLEX TOKENS LEXING METHODS.
+    # COMPLEX TOKENS LEXING RULES.
     @TOKEN(integer_rule)
     def t_INTEGER(self, t):
         """The Integer Token Rule."""
@@ -149,10 +151,9 @@ class PyCoolCLexer(object):
 
     # ################### END OF LEXICAL TOKENS RULES DECLARATION ####################
 
-    # Build the lexer
     def build(self, **kwargs):
         """
-        The PLY Lexer Builder method.
+        The PLY Lexer Builder method. Used to build lexer post-initilization.
         """
         self.tokens = self.tokens_list + list(self.basic_reserved.values())
         self.lexer = lex.lex(module=self, **kwargs)
@@ -181,7 +182,5 @@ if __name__ == '__main__':
     with open(cl_file, 'r', encoding='utf-8') as source_code:
         cool_program = source_code.read()
 
-    lexer = PyCoolCLexer()
-    lexer.build()
+    lexer = PyCoolCLexer(post_init_build=True)
     lexer.test(cool_program)
-
