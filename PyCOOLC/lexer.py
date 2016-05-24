@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 
-"""
-File: lexer.py
-Author: Ahmad Alhour (git.io/aalhour; aalhour.com).
-Date: May 23rd, 2016.
-Description: The Lexer module. Implements lexical analysis and tokenization of COOL programs.
-"""
+# -----------------------------------------------------------------------------
+# lexer.py
+#
+# Author:       Ahmad Alhour (git.io/aalhour; aalhour.com).
+# Date:         May 23rd, 2016.
+# Description:  The Lexer module. Implements lexical analysis of COOL programs.
+# -----------------------------------------------------------------------------
 
 import sys
 import ply.lex as lex
@@ -189,12 +190,36 @@ class PyCoolLexer(object):
         self.tokens = self.tokens_list + list(self.basic_reserved.values())
         self.lexer = lex.lex(module=self, **kwargs)
 
+    def tokenize(self, cool_program_source_code):
+        """
+        Given a cool program source code as a string, tokenize the data.
+        :param cool_program_source_code: COOL program source code as a string.
+        :return: None.
+        """
+        if self.lexer is None:
+            raise Exception("Lexer was not built. Try calling the build() method first, and then tokenize().")
+
+        self.lexer.input(cool_program_source_code)
+
+    def next_token(self):
+        """
+        Advances the lexer token pointer one token ahead and return the token.
+        :return: Token.
+        """
+        if self.lexer is None:
+            raise Exception("Lexer was not built. Try building the lexer with the build() method.")
+
+        return self.lexer.token()
+
     def test(self, program_source_code):
         """
         Given a string program source code, try to lexically analyse it printing the results to stdout.
         :param program_source_code: String.
         :return: None.
         """
+        if self.lexer is None:
+            raise Exception("Lexer was not built. Try calling the build() method first, and then test().")
+
         self.lexer.input(program_source_code)
         while True:
             token = self.lexer.token()
