@@ -12,7 +12,12 @@ import ply.lex as lex
 from ply.lex import TOKEN
 
 
-class PyCoolCLexer(object):
+class PyCoolLexer(object):
+    """
+    PyCoolLexer class implements a PLY Lexer by specifying tokens list, reserved keywords map in addition to Tokens
+    Matching Rules as regular expressions.
+    The Rules need to be in the order of their appearance.
+    """
     def __init__(self, post_init_build=False):
         self.lexer = None
         self.tokens = []
@@ -39,12 +44,21 @@ class PyCoolCLexer(object):
             "null": "NULL",
             "var": "VAR",
             "while": "WHILE",
+            "loop": "LOOP",
+            "pool": "POOL",
             "class": "CLASS",
             "def": "DEF",
+            "let": "LET",
+            "in": "IN",
             "override": "OVERRIDE",
             "super": "SUPER",
             "this": "THIS",
-            "inherits": "INHERITS"
+            "inherits": "INHERITS",
+            "self": "SELF",
+            "Int": "INT_TYPE",
+            "String": "STRING_TYPE",
+            "Object": "OBJECT_TYPE",
+            "SELF_TYPE": "SELF_TYPE"
         }
 
     @property
@@ -87,65 +101,82 @@ class PyCoolCLexer(object):
         :return: list.
         """
         return [
-            "INTEGER", "STRING", "LPAREN", "RPAREN", "LCBRACE", "RCBRACE", "COLON", "COMMA", "DOT", "SEMICOLON",
-            "PLUS", "MINUS", "TIMES", "DIVIDE", "EQUALS", "DBEQUALS", "LTHAN", "LTEQ", "BANG", "ID"
+            "INTEGER", "STRING", "LCOMMENT", "RCOMMENT", "SLCOMMENT", "LPAREN", "RPAREN", "LCBRACE", "RCBRACE",
+            "COLON", "COMMA", "DOT", "SEMICOLON", "PLUS", "MINUS", "TIMES", "DIVIDE", "EQUALS", "DBEQUALS", "LTHAN",
+            "ARROW", "LTEQ", "BANG", "NEG", "ID"
         ]
 
     # ################### START OF LEXICAL TOKENS RULES DECLARATION ####################
 
     # SIMPLE TOKENS RULES
-    t_LPAREN    = r'\)'
-    t_RPAREN    = r'\('
-    t_LCBRACE   = r'{'
-    t_RCBRACE   = r'}'
-    t_COLON     = r':'
-    t_COMMA     = r','
-    t_DOT       = r'\.'
-    t_SEMICOLON = r';'
-    t_PLUS      = r'\+'
-    t_MINUS     = r'\-'
-    t_TIMES     = r'\*'
-    t_DIVIDE    = r'/'
-    t_EQUALS    = r'='
-    t_DBEQUALS  = r'=='
-    t_LTHAN     = r'<'
-    t_LTEQ      = r'<='
-    t_BANG      = r'!'
+    t_LCOMMENT  = r'\(\*'   # (*    Multi-line comment start
+    t_RCOMMENT  = r'\*\)'   # *)    Multi-line comment end
+    t_SLCOMMENT = r'\-\-'   # --    Single-line comment
+    t_LPAREN    = r'\)'     # (
+    t_RPAREN    = r'\('     # )
+    t_LCBRACE   = r'{'      # {
+    t_RCBRACE   = r'}'      # }
+    t_COLON     = r':'      # :
+    t_COMMA     = r','      # ,
+    t_DOT       = r'\.'     # .
+    t_SEMICOLON = r';'      # ;
+    t_TIMES     = r'\*'     # *
+    t_DIVIDE    = r'/'      # /
+    t_PLUS      = r'\+'     # +
+    t_MINUS     = r'\-'     # -
+    t_NEG       = r'~'      # ~
+    t_DBEQUALS  = r'=='     # ==
+    t_EQUALS    = r'='      # =
+    t_LTEQ      = r'<='     # <=
+    t_ARROW     = r'<-'     # <-
+    t_LTHAN     = r'<'      # <
+    t_BANG      = r'!'      # !
 
+    # COMPLEX TOKENS LEXING RULES.
     integer_rule    = r'\d+'
     string_rule     = r'\"(\\.|[^"])*\"'
     identifier_rule = r'[a-zA-Z_][a-zA-Z_0-9]*'
+    newline_rule    = r'\n+'
 
-    # COMPLEX TOKENS LEXING RULES.
     @TOKEN(integer_rule)
     def t_INTEGER(self, t):
-        """The Integer Token Rule."""
+        """
+        The Integer Token Rule.
+        """
         t.value = int(t.value)
         return t
 
     @TOKEN(string_rule)
     def t_STRING(self, t):
-        """The String Token Rule."""
+        """
+        The String Token Rule.
+        """
         t.value = str(t.value)
         return t
 
     @TOKEN(identifier_rule)
     def t_ID(self, t):
-        """The Identifier Token Rule."""
+        """
+        The Identifier Token Rule.
+        """
         # Check for reserved words
         t.type = self.basic_reserved.get(t.value, 'ID')
         return t
 
-    # NEW-LINES TOKENS RULES. WE MATCH THEM TO KEEP TRACK OF LINE NUMBERS.
+    @TOKEN(newline_rule)
     def t_newline(self, t):
-        r'\n+'
+        """
+        The Newline Token Rule.
+        """
         t.lexer.lineno += len(t.value)
 
     # IGNORE WHITESPACE TOKENS RULE.
-    t_ignore = r' \t'
+    t_ignore = r'[ \t]+'
 
-    # ERROR HANDLING RULE.
     def t_error(self, t):
+        """
+        Error Handling Rule.
+        """
         print("Illegal character '%s'" % t.value[0])
         t.lexer.skip(1)
 
@@ -179,8 +210,9 @@ if __name__ == '__main__':
     else:
         cl_file = sys.argv[1]
 
-    with open(cl_file, 'r', encoding='utf-8') as source_code:
-        cool_program = source_code.read()
+        with open(cl_file, 'r', encoding='utf-8') as source_code:
+            cool_program = source_code.read()
 
-    lexer = PyCoolCLexer(post_init_build=True)
-    lexer.test(cool_program)
+        lexer = PyCoolLexer(post_init_build=True)
+        lexer.test(cool_program)
+

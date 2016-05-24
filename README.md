@@ -5,7 +5,7 @@ A (Work In Progress) compiler for the **[COOL](https://en.wikipedia.org/wiki/Coo
 ## REQUIREMENTS
 
  * Python >= 3.5.
- * SPIM - MIPS 32-bit Assembly Simulator: [Homepage](http://spimsimulator.sourceforge.net), [@SourceForge](https://sourceforge.net/projects/spimsimulator/files/).
+ * SPIM - MIPS 32-bit Assembly Simulator: [@Homepage](http://spimsimulator.sourceforge.net), [@SourceForge](https://sourceforge.net/projects/spimsimulator/files/).
  * All Python packages listed in: [`requirements.txt`](requirements.txt).
 
 ## LANGUAGE FEATURES
@@ -17,4 +17,3 @@ A (Work In Progress) compiler for the **[COOL](https://en.wikipedia.org/wiki/Coo
 ## LICENSE
 
 This project is licensed under the [MIT License](LICENSE). All copyrights of the files and documents under the [/docs](/docs) directory belong to their original owners.
-
