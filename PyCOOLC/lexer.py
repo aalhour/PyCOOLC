@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 # -----------------------------------------------------------------------------
 # lexer.py
 #
@@ -8,7 +6,6 @@
 # Description:  The Lexer module. Implements lexical analysis of COOL programs.
 # -----------------------------------------------------------------------------
 
-import sys
 import ply.lex as lex
 from ply.lex import TOKEN
 
@@ -20,9 +17,9 @@ class PyCoolLexer(object):
     The Rules need to be in the order of their appearance.
     """
     def __init__(self, post_init_build=False):
-        self.lexer = None
-        self.tokens = []
-        if post_init_build is True:
+        self.lexer = None               # ply lexer instance
+        self.tokens = ()                # tokens collection
+        if post_init_build is True:     # build right after instantiation?
             self.build()
 
     @property
@@ -96,23 +93,40 @@ class PyCoolLexer(object):
         }
 
     @property
-    def tokens_list(self):
+    def tokens_collection(self):
         """
         List of Cool Syntax Tokens.
-        :return: list.
+        :return: Tuple.
         """
-        return [
-            "INTEGER", "STRING", "LCOMMENT", "RCOMMENT", "SLCOMMENT", "LPAREN", "RPAREN", "LCBRACE", "RCBRACE",
-            "COLON", "COMMA", "DOT", "SEMICOLON", "PLUS", "MINUS", "TIMES", "DIVIDE", "EQUALS", "DBEQUALS", "LTHAN",
-            "ARROW", "LTEQ", "BANG", "NEG", "ID"
-        ]
+        return (
+            "INTEGER",
+            "STRING",
+            "COMMENT",
+            "LPAREN",
+            "RPAREN",
+            "LCBRACE",
+            "RCBRACE",
+            "COLON",
+            "COMMA",
+            "DOT",
+            "SEMICOLON",
+            "PLUS",
+            "MINUS",
+            "TIMES",
+            "DIVIDE",
+            "EQUALS",
+            "DBEQUALS",
+            "LTHAN",
+            "ARROW",
+            "LTEQ",
+            "BANG",
+            "NEG",
+            "ID"
+        )
 
     # ################### START OF LEXICAL TOKENS RULES DECLARATION ####################
 
     # SIMPLE TOKENS RULES
-    t_LCOMMENT  = r'\(\*'   # (*    Multi-line comment start
-    t_RCOMMENT  = r'\*\)'   # *)    Multi-line comment end
-    t_SLCOMMENT = r'\-\-'   # --    Single-line comment
     t_LPAREN    = r'\)'     # (
     t_RPAREN    = r'\('     # )
     t_LCBRACE   = r'\{'     # {
@@ -133,12 +147,23 @@ class PyCoolLexer(object):
     t_LTHAN     = r'\<'     # <
     t_BANG      = r'\!'     # !
 
+    # IGNORED CHARACTERS
+    t_ignore    = r''       # No ignored characters.
+
     # COMPLEX TOKENS LEXING RULES.
     integer_rule    = r'\d+'
     string_rule     = r'\"(\\.|[^"])*\"'
     identifier_rule = r'[a-zA-Z_][a-zA-Z_0-9]*'
     newline_rule    = r'\n+'
     whitespace_rule = r'[\ \t\s]+'
+    comments_rule   = r'(\(\*(.|\n)*?\*\))|(\-\-.*)'
+
+    @TOKEN(comments_rule)
+    def t_COMMENT(self, t):
+        """
+        The Single-Line and Multi-Line Comments Rule. It ignores all comments lines.
+        """
+        pass
 
     @TOKEN(integer_rule)
     def t_INTEGER(self, t):
@@ -191,14 +216,21 @@ class PyCoolLexer(object):
 
     def build(self, **kwargs):
         """
-        The PLY Lexer Builder method. Used to build lexer post-initilization.
+        The PLY Lexer Builder method. Used to build lexer post-initialization.
         """
-        self.tokens = self.tokens_list + list(self.basic_reserved.values())
+        self.tokens = self.tokens_collection + tuple(self.basic_reserved.values())
         self.lexer = lex.lex(module=self, **kwargs)
 
-    def tokenize(self, cool_program_source_code):
+    def get_ply_lex(self):
         """
-        Given a cool program source code as a string, tokenize the data.
+        Returns a reference to the internal PLY lexer (self.lexer) object.
+        :return: self.lexer
+        """
+        return self.lexer
+
+    def input(self, cool_program_source_code):
+        """
+        A wrapper around the internal self.lexer.input() method.
         :param cool_program_source_code: COOL program source code as a string.
         :return: None.
         """
@@ -207,9 +239,9 @@ class PyCoolLexer(object):
 
         self.lexer.input(cool_program_source_code)
 
-    def next_token(self):
+    def token(self):
         """
-        Advances the lexer token pointer one token ahead and return the token.
+        A wrapper around the internal self.lexer.token() method.
         :return: Token.
         """
         if self.lexer is None:
@@ -226,24 +258,18 @@ class PyCoolLexer(object):
         if self.lexer is None:
             raise Exception("Lexer was not built. Try calling the build() method first, and then test().")
 
-        self.lexer.input(program_source_code)
-        while True:
-            token = self.lexer.token()
-            if not token:
-                break
+        self.input(program_source_code)
+        for token in self.lexer:
             print(token)
 
+    ###
+    # Iterator Interface
+    def __iter__(self):
+        return self
 
-if __name__ == '__main__':
-    if len(sys.argv) != 2:
-        print("Usage: ./lexer.py program.cl")
-        exit()
-    else:
-        cl_file = sys.argv[1]
-
-        with open(cl_file, 'r', encoding='utf-8') as source_code:
-            cool_program = source_code.read()
-
-        lexer = PyCoolLexer(post_init_build=True)
-        lexer.test(cool_program)
+    def __next__(self):
+        t = self.token()
+        if t is None:
+            raise StopIteration
+        return t
 
