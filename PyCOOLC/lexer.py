@@ -115,29 +115,30 @@ class PyCoolLexer(object):
     t_SLCOMMENT = r'\-\-'   # --    Single-line comment
     t_LPAREN    = r'\)'     # (
     t_RPAREN    = r'\('     # )
-    t_LCBRACE   = r'{'      # {
-    t_RCBRACE   = r'}'      # }
-    t_COLON     = r':'      # :
-    t_COMMA     = r','      # ,
+    t_LCBRACE   = r'\{'     # {
+    t_RCBRACE   = r'\}'     # }
+    t_COLON     = r'\:'     # :
+    t_COMMA     = r'\,'     # ,
     t_DOT       = r'\.'     # .
-    t_SEMICOLON = r';'      # ;
+    t_SEMICOLON = r'\;'     # ;
     t_TIMES     = r'\*'     # *
-    t_DIVIDE    = r'/'      # /
+    t_DIVIDE    = r'\/'     # /
     t_PLUS      = r'\+'     # +
     t_MINUS     = r'\-'     # -
     t_NEG       = r'~'      # ~
-    t_DBEQUALS  = r'=='     # ==
-    t_EQUALS    = r'='      # =
-    t_LTEQ      = r'<='     # <=
-    t_ARROW     = r'<-'     # <-
-    t_LTHAN     = r'<'      # <
-    t_BANG      = r'!'      # !
+    t_DBEQUALS  = r'\=\='   # ==
+    t_EQUALS    = r'\='     # =
+    t_LTEQ      = r'\<\='   # <=
+    t_ARROW     = r'\<\-'   # <-
+    t_LTHAN     = r'\<'     # <
+    t_BANG      = r'\!'     # !
 
     # COMPLEX TOKENS LEXING RULES.
     integer_rule    = r'\d+'
     string_rule     = r'\"(\\.|[^"])*\"'
     identifier_rule = r'[a-zA-Z_][a-zA-Z_0-9]*'
     newline_rule    = r'\n+'
+    whitespace_rule = r'[\ \t\s]+'
 
     @TOKEN(integer_rule)
     def t_INTEGER(self, t):
@@ -164,15 +165,20 @@ class PyCoolLexer(object):
         t.type = self.basic_reserved.get(t.value, 'ID')
         return t
 
+    @TOKEN(whitespace_rule)
+    def t_WHITESPACE(self, t):
+        """
+        The Whitespace Token Rule.
+        This rule replaces the PLY t_ignore simple regex rule (t_ignore = r' \t').
+        """
+        pass
+
     @TOKEN(newline_rule)
     def t_newline(self, t):
         """
         The Newline Token Rule.
         """
         t.lexer.lineno += len(t.value)
-
-    # IGNORE WHITESPACE TOKENS RULE.
-    t_ignore = r'[ \t]+'
 
     def t_error(self, t):
         """
