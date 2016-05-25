@@ -6,6 +6,7 @@
 # Description:  The Lexer module. Implements lexical analysis of COOL programs.
 # -----------------------------------------------------------------------------
 
+import sys
 import ply.lex as lex
 from ply.lex import TOKEN
 
@@ -18,7 +19,8 @@ class PyCoolLexer(object):
     """
     def __init__(self, post_init_build=False):
         self.lexer = None               # ply lexer instance
-        self.tokens = ()                # tokens collection
+        self.tokens = ()                # ply tokens collection
+        self.reserved = {}              # ply reserved keywords map
         if post_init_build is True:     # build right after instantiation?
             self.build()
 
@@ -34,10 +36,6 @@ class PyCoolLexer(object):
             "else": "ELSE",
             "case": "CASE",
             "esac": "ESAC",
-            "true": "TRUE",
-            "false": "FALSE",
-            "match": "MATCH",
-            "native": "NATIVE",
             "new": "NEW",
             "null": "NULL",
             "var": "VAR",
@@ -48,12 +46,16 @@ class PyCoolLexer(object):
             "def": "DEF",
             "let": "LET",
             "in": "IN",
+            "of": "OF",
             "override": "OVERRIDE",
             "super": "SUPER",
             "this": "THIS",
             "inherits": "INHERITS",
             "self": "SELF",
+            "isvoid": "ISVOID",
+            "IO": "IO_CLASS",
             "Int": "INT_TYPE",
+            "Bool": "BOOL_TYPE",
             "String": "STRING_TYPE",
             "Object": "OBJECT_TYPE",
             "SELF_TYPE": "SELF_TYPE"
@@ -76,6 +78,8 @@ class PyCoolLexer(object):
             "explicit": "IMPLICIT",
             "implicit": "IMPORT",
             "lazy": "LAZY",
+            "match": "MATCH",
+            "native": "NATIVE",
             "object": "OBJECT",
             "package": "PACKAGE",
             "private": "PRIVATE",
@@ -99,76 +103,67 @@ class PyCoolLexer(object):
         :return: Tuple.
         """
         return (
-            "INTEGER",
-            "STRING",
+            # Identifiers
+            "ID",
+            # Primitive Types
+            "INTEGER", "STRING", "BOOLEAN",
+            # Discarded
             "COMMENT",
-            "LPAREN",
-            "RPAREN",
-            "LCBRACE",
-            "RCBRACE",
-            "COLON",
-            "COMMA",
-            "DOT",
-            "SEMICOLON",
-            "PLUS",
-            "MINUS",
-            "TIMES",
-            "DIVIDE",
-            "EQUALS",
-            "DBEQUALS",
-            "LTHAN",
-            "ARROW",
-            "LTEQ",
-            "BANG",
-            "NEG",
-            "ID"
+            # Literals
+            "LEFT_PAREN", "RIGHT_PAREN", "LEFT_BRACE", "RIGHT_BRACE", "COLON", "COMMA", "DOT", "SEMICOLON",
+            # Operators
+            "PLUS", "MINUS", "TIMES", "DIVIDE", "EQUALS", "DOUBLE_EQUALS", "LESS_THAN", "LESS_THAN_EQUAL",
+            "ASSIGNMENT", "BANG", "INT_COMPLEMENT", "NOT",
+            # Special Operators
+            "ACTION"
         )
 
     # ################### START OF LEXICAL TOKENS RULES DECLARATION ####################
 
     # SIMPLE TOKENS RULES
-    t_LPAREN    = r'\)'     # (
-    t_RPAREN    = r'\('     # )
-    t_LCBRACE   = r'\{'     # {
-    t_RCBRACE   = r'\}'     # }
-    t_COLON     = r'\:'     # :
-    t_COMMA     = r'\,'     # ,
-    t_DOT       = r'\.'     # .
-    t_SEMICOLON = r'\;'     # ;
-    t_TIMES     = r'\*'     # *
-    t_DIVIDE    = r'\/'     # /
-    t_PLUS      = r'\+'     # +
-    t_MINUS     = r'\-'     # -
-    t_NEG       = r'~'      # ~
-    t_DBEQUALS  = r'\=\='   # ==
-    t_EQUALS    = r'\='     # =
-    t_LTEQ      = r'\<\='   # <=
-    t_ARROW     = r'\<\-'   # <-
-    t_LTHAN     = r'\<'     # <
-    t_BANG      = r'\!'     # !
-
-    # IGNORED CHARACTERS
-    t_ignore    = r''       # No ignored characters.
+    t_LEFT_PAREN = r'\)'            # (
+    t_RIGHT_PAREN = r'\('          # )
+    t_LEFT_BRACE = r'\{'            # {
+    t_RIGHT_BRACE = r'\}'           # }
+    t_COLON = r'\:'                 # :
+    t_COMMA = r'\,'                 # ,
+    t_DOT = r'\.'                   # .
+    t_SEMICOLON = r'\;'             # ;
+    t_TIMES = r'\*'                 # *
+    t_DIVIDE = r'\/'                # /
+    t_PLUS = r'\+'                  # +
+    t_MINUS = r'\-'                 # -
+    t_INT_COMPLEMENT = r'~'         # ~
+    t_DOUBLE_EQUALS = r'\=\='       # ==
+    t_LESS_THAN = r'\<'             # <
+    t_EQUALS = r'\='                # =
+    t_LESS_THAN_EQUAL = r'\<\='     # <=
+    t_ASSIGNMENT = r'\<\-'          # <-
+    t_BANG = r'\!'                  # !
+    t_NOT = r'not|NOT'              # not
+    t_ACTION = r'\=\>'              # =>
 
     # COMPLEX TOKENS LEXING RULES.
-    integer_rule    = r'\d+'
-    string_rule     = r'\"(\\.|[^"])*\"'
+    integer_rule = r'\d+'
+    string_rule = r'\"(\\.|[^"])*\"'
     identifier_rule = r'[a-zA-Z_][a-zA-Z_0-9]*'
-    newline_rule    = r'\n+'
+    newline_rule = r'\n+'
     whitespace_rule = r'[\ \t\s]+'
-    comments_rule   = r'(\(\*(.|\n)*?\*\))|(\-\-.*)'
+    comments_rule = r'(\(\*(.|\n)*?\*\))|(\-\-.*)'
+    boolean_rule = r'true|false'
 
-    @TOKEN(comments_rule)
-    def t_COMMENT(self, t):
+    @TOKEN(boolean_rule)
+    def t_BOOLEAN(self, t):
         """
-        The Single-Line and Multi-Line Comments Rule. It ignores all comments lines.
+        The Bool Primitive Type Token Rule.
         """
-        pass
+        t.value = True if t.value == 'true' else False
+        return t
 
     @TOKEN(integer_rule)
     def t_INTEGER(self, t):
         """
-        The Integer Token Rule.
+        The Integer Primitive Type Token Rule.
         """
         t.value = int(t.value)
         return t
@@ -176,7 +171,7 @@ class PyCoolLexer(object):
     @TOKEN(string_rule)
     def t_STRING(self, t):
         """
-        The String Token Rule.
+        The String Primitive Type Token Rule.
         """
         t.value = str(t.value)
         return t
@@ -190,6 +185,13 @@ class PyCoolLexer(object):
         t.type = self.basic_reserved.get(t.value, 'ID')
         return t
 
+    @TOKEN(comments_rule)
+    def t_COMMENT(self, t):
+        """
+        The Single-Line and Multi-Line Comments Rule. It ignores all comments lines.
+        """
+        pass
+
     @TOKEN(whitespace_rule)
     def t_WHITESPACE(self, t):
         """
@@ -197,6 +199,9 @@ class PyCoolLexer(object):
         This rule replaces the PLY t_ignore simple regex rule (t_ignore = r' \t').
         """
         pass
+
+    # IGNORED CHARACTERS
+    t_ignore = r''       # No ignored characters.
 
     @TOKEN(newline_rule)
     def t_newline(self, t):
@@ -218,6 +223,7 @@ class PyCoolLexer(object):
         """
         The PLY Lexer Builder method. Used to build lexer post-initialization.
         """
+        self.reserved = self.basic_reserved
         self.tokens = self.tokens_collection + tuple(self.basic_reserved.values())
         self.lexer = lex.lex(module=self, **kwargs)
 
@@ -273,4 +279,19 @@ class PyCoolLexer(object):
             raise StopIteration
         return t
 
+
+if __name__ == "__main__":
+    if len(sys.argv) != 2:
+        print("Usage: ./parser.py program.cl")
+        exit()
+
+    input_file = sys.argv[1]
+    with open(input_file, encoding="utf-8") as file:
+        cool_program_code = file.read()
+
+    lexer = PyCoolLexer()
+    lexer.build()
+    lexer.input(cool_program_code)
+    for token in lexer:
+        print(token)
 

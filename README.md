@@ -2,6 +2,10 @@
 
 A (Work In Progress) compiler for the **[COOL](https://en.wikipedia.org/wiki/Cool_(programming_language))** programming language, written entirely in Python 3. **COOL** stands for **C**lassroom **O**bject **O**riented **L**anguage. Many example COOL programs can be found under the [/example_cool_programs](/example_cool_programs) directory.
 
+**COOL** is a small object oriented language that is type-safe, garbage collected, strongly types and type safe. It has mainly 3 primitive data types: Integers, Strings and Booleans (True and False). It supports control flow and pattern matching.
+
+A formal treatment of **COOL**'s Context-Free Grammar can be found at [/docs/CFG.md](/docs/CFG.md).
+
 ## DEV. STATUS
 
 Each Compiler stage is designed as a separate component, the following is the completion status of each one:
@@ -20,18 +24,18 @@ Each Compiler stage is designed as a separate component, the following is the co
 
 ## LANGUAGE FEATURES
 
- * Object Orientedness:
-  + Class Declaration.
-  + Object Instantiation.
-  + Inheritance.
- * Strong Static Typing.
- * Pattern Matching.
- * Control Flow:
-  + Switch Case.
-  + If/Then/Else Statments.
-  + While Loops.
- * Automatic Memory Management:
-  + Garbage Collection.
+  * Object Orientedness:
+    + Class Declaration.
+    + Object Instantiation.
+    + Inheritance.
+  * Strong Static Typing.
+  * Pattern Matching.
+  * Control Flow:
+    + Switch Case.
+    + If/Then/Else Statments.
+    + While Loops.
+  * Automatic Memory Management:
+    + Garbage Collection.
 
 ## LICENSE
 
