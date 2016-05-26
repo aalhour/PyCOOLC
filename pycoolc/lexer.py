@@ -109,7 +109,7 @@ class PyCoolLexer(object):
         """
         return (
             # Identifiers
-            "ID",
+            "ID", "TYPE",
 
             # Primitive Types
             "INTEGER", "STRING", "BOOLEAN",
@@ -157,7 +157,8 @@ class PyCoolLexer(object):
     integer_rule = r'\d+'
     boolean_rule = r'true|false'
     string_rule = r'\"(\\.|[^"])*\"'
-    identifier_rule = r'[a-zA-Z_][a-zA-Z_0-9]*'
+    type_rule = r'[A-Z][a-zA-Z_0-9]*'
+    identifier_rule = r'[a-z_][a-zA-Z_0-9]*'
     newline_rule = r'\n+'
     whitespace_rule = r'[\ \t\s]+'
     comments_rule = r'(\(\*(.|\n)*?\*\))|(\-\-.*)'
@@ -184,6 +185,14 @@ class PyCoolLexer(object):
         The String Primitive Type Token Rule.
         """
         token.value = str(token.value)
+        return token
+
+    @TOKEN(type_rule)
+    def t_TYPE(self, token):
+        """
+        The Type Token Rule.
+        """
+        token.type = self.basic_reserved.get(token.value, 'TYPE')
         return token
 
     @TOKEN(identifier_rule)
