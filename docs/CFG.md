@@ -1,41 +1,98 @@
 ## COOL's Context-Free Grammar
 
-The following is a formalization of COOL's Context-Free Grammar in Backus-Naur Form (BNF).
+The following is a formalization of COOL's Context-Free Grammar in Backus-Naur Form (BNF). The grammar specifies COOL as per the 2012 specification, which is part of the COOL Reference Manual.
+
+A preliminary note on the meaning of postfixes in left-hand-side symbols:
+
+  * `ne` is an abbreviation for "Not Empty", which means that the given production rule doesn't directly produce the empty string.
+  * `woa` is an abbreviation for "Without Assignment", which means that the given production rule doesn't produce `formal` Symbols with assignment.
+
+### Grammar
 
 ```bnf
-<program>   ::= [<class>;]+
+<program>        ::= <classes>
 
-<class>     ::= class TYPE [ inherits TYPE ] { [<feature>;]* }
+<classes>        ::= <class>
+                 |   <class> <classes>
 
-<feature>   ::= ID( [ <formal> [, <formal>]* ] ) : TYPE { <expr> }
-            |   ID : TYPE [ <- <expr> ]
+<class>          ::= class TYPE <inheritance> { <features> } ;
 
-<formal>    ::= ID : TYPE
+<inheritance>    ::= inherits TYPE
+                 |   ""
 
-<expr>      ::= ID <- <expr>
-            |   <expr>[@TYPE].ID( [ <expr> [, <expr>]* ] )
-            |   if <expr> then <expr> else <expr> fi
-            |   while <expr> loop <expr> pool
-            |   { [<expr>;]+ }
-            |   let ID : TYPE [ <- <expr> ] [, ID : TYPE [ <- <expr> ] ]* in <expr>
-            |   case <expr> of [ ID : TYPE => <expr>; ]+ esac
-            |   new TYPE
-            |   isvoid <expr>
-            |   <expr> + <expr>
-            |   <expr> - <expr>
-            |   <expr> * <expr>
-            |   <expr> / <expr>
-            |   ~<expr>
-            |   <expr> < <expr>
-            |   <expr> <= <expr>
-            |   <expr> = <expr>
-            |   not <expr>
-            |   (<expr>)
-            |   ID
-            |   integer
-            |   string
-            |   true
-            |   false
+<features>       ::= <feature> <features>
+                 |   ""
+
+<feature>        ::= ID ( <formals-woa> ) : TYPE { <expr> } ;
+                 |   <formal> ;
+
+<formals>        ::= <formal>
+                 |   <formal>, <formals-ne>
+                 |   ""
+                
+<formals-ne>     ::= <formal>
+                 |   <formal>, <formals-ne>
+
+<formal>         ::= ID : TYPE
+                 |   ID : TYPE <- <expr>
+
+<formals-woa>    ::= <formal-woa>
+                 |   <formal-woa>, <formals-woa-ne>
+                 |   ""
+
+<formals-woa-ne> ::= <formal-woa>
+                 |   <formal-woa>, <formals-woa-ne>
+
+<formal-woa>     ::= ID : TYPE
+
+<exprns>         ::= <expr>
+                 |   <expr>, <exprns-ne>
+                 |   ""
+
+<exprns-ne>      ::= <expr>
+                 |   <expr>, <exprns-ne>
+
+<expr>           ::= <assignment>
+                 |   <expr><at-type>.ID( <exprns> )
+                 |   <if-then-else>
+                 |   <while>
+                 |   { <exprns-ne> }
+                 |   <let>
+                 |   <case>
+                 |   new TYPE
+                 |   isvoid <expr>
+                 |   <expr> + <expr>
+                 |   <expr> - <expr>
+                 |   <expr> * <expr>
+                 |   <expr> / <expr>
+                 |   ~ <expr>
+                 |   <expr> < <expr>
+                 |   <expr> <= <expr>
+                 |   <expr> = <expr>
+                 |   not <expr>
+                 |   (<expr>)
+                 |   ID
+                 |   integer
+                 |   string
+                 |   true
+                 |   false
+
+<assignment>     ::= ID <- <expr>
+
+<at-type>        ::= @TYPE
+                 |   ""
+
+<actions>        ::= <action>
+                 |   <action> <actions>
+
+<action>         ::= ID : TYPE => <expr>
+
+<if-then-else>   ::= if <expr> then <expr> else <expr> fi
+
+<while>          ::= while <expr> loop <expr> pool
+
+<let>            ::= let <formals-ne> in <expr>
+
+<case>           ::= case <expr> of <actions> esac
 ```
 
-The previous Formal Language specification was translated from the COOL Reference Manual \[2012\], by Alex Aiken.
