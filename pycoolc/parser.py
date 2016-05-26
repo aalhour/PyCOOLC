@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 # -----------------------------------------------------------------------------
 # parser.py
 #
@@ -13,7 +15,13 @@ from lexer import PyCoolLexer
 
 class PyCoolParser(object):
     def __init__(self):
-        self.lexer = PyCoolLexer()
-        self.lexer.build()
+        # Initialize self.parser to None
+        self.parser = None
 
+        # Instantiate the internal lexer and build it.
+        self.lexer = PyCoolLexer()
+
+    def build(self, **kwargs):
+        self.lexer.build(**kwargs)
+        self.parser = yacc.yacc(module=self, **kwargs)
 

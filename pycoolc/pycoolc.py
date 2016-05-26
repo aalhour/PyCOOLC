@@ -13,6 +13,9 @@ if __name__ == "__main__":
     with open(input_file, encoding="utf-8") as file:
         cool_program_code = file.read()
 
-    # Scan and parse program...
-
+    parser = PyCoolParser()
+    parser.build()
+    parser.lexer.input(cool_program_code)
+    for token in parser.lexer:
+        print(token)
 
