@@ -1,6 +1,8 @@
+dist/
+build/
+pycoolc/__pycache__/
 .idea
 *.pyc
 *.egg
 *.egg-info
-build/
-dist/
+*.out
