@@ -1,6 +1,6 @@
-## Context-Free Grammar of COOL
+## COOL's Context-Free Grammar
 
-The following is a formalization of COOL's Context Free Grammar in Backus-Naur Form (BNF).
+The following is a formalization of COOL's Context-Free Grammar in Backus-Naur Form (BNF).
 
 ```bnf
 <program>   ::= [<class>;]+
@@ -37,3 +37,5 @@ The following is a formalization of COOL's Context Free Grammar in Backus-Naur F
             |   true
             |   false
 ```
+
+The previous Formal Language specification was translated from the COOL Reference Manual \[2012\], by Alex Aiken.
