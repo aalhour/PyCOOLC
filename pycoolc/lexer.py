@@ -3,7 +3,7 @@
 # -----------------------------------------------------------------------------
 # lexer.py
 #
-# Author:       Ahmad Alhour (git.io/aalhour; aalhour.com).
+# Author:       Ahmad Alhour (github.com/aalhour; aalhour.com).
 # Date:         May 23rd, 2016.
 # Description:  The Lexer module. Implements lexical analysis of COOL programs.
 # -----------------------------------------------------------------------------
@@ -231,7 +231,10 @@ class PyCoolLexer(object):
 
     def build(self, **kwargs):
         """
-        The PLY Lexer Builder method. Used to build lexer post-initialization.
+        Builds the PyCoolLexer instance with lex.lex() by binding the tokens list, reserved keywords map and lexer
+        object in the current instance scope.
+        :param kwargs: lex.lex() config parameters.
+        :return: None
         """
         self.reserved = self.basic_reserved
         self.tokens = self.tokens_collection + tuple(self.basic_reserved.values())
@@ -292,6 +295,10 @@ class PyCoolLexer(object):
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
+        print("Usage: ./parser.py program.cl")
+        exit()
+    elif not str(sys.argv[1]).endswith(".cl"):
+        print("Cool program source code files must end with .cl extension.")
         print("Usage: ./parser.py program.cl")
         exit()
 
