@@ -17,7 +17,7 @@ A formal treatment of **COOL**'s Context-Free Grammar can be found at [/docs/CFG
       * [Lexer](#lexer).
       * [Parser](#parser).
     + [Python Module](#python-module).
-  * [Language Feature](#language-features).
+  * [Language Features](#language-features).
   * [License](#license)
 
 ------------------------------

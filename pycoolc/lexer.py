@@ -33,33 +33,31 @@ class PyCoolLexer(object):
         :return: dict.
         """
         return {
-            "if": "IF",
-            "fi": "FI",
-            "else": "ELSE",
+            # KEYWORDS - alphabetical order
             "case": "CASE",
-            "esac": "ESAC",
-            "new": "NEW",
-            "null": "NULL",
-            "var": "VAR",
-            "while": "WHILE",
-            "loop": "LOOP",
-            "pool": "POOL",
             "class": "CLASS",
-            "def": "DEF",
-            "let": "LET",
+            "else": "ELSE",
+            "esac": "ESAC",
+            "fi": "FI",
+            "if": "IF",
             "in": "IN",
+            "inherits": "INHERITS",
+            "isvoid": "ISVOID",
+            "let": "LET",
+            "loop": "LOOP",
+            "new": "NEW",
             "of": "OF",
             "override": "OVERRIDE",
-            "super": "SUPER",
-            "this": "THIS",
-            "inherits": "INHERITS",
+            "pool": "POOL",
             "self": "SELF",
-            "isvoid": "ISVOID",
-            "IO": "IO_CLASS",
-            "Int": "INT_TYPE",
+            "while": "WHILE",
+
+            # BASIC TYPES - alphabetical order
             "Bool": "BOOL_TYPE",
-            "String": "STRING_TYPE",
+            "Int": "INT_TYPE",
+            "IO": "IO_CLASS",
             "Object": "OBJECT_TYPE",
+            "String": "STRING_TYPE",
             "SELF_TYPE": "SELF_TYPE"
         }
 
@@ -73,6 +71,7 @@ class PyCoolLexer(object):
             "abstract": "ABSTRACT",
             "catch": "CATCH",
             "do": "DO",
+            "def": "DEF",
             "final": "FINAL",
             "finally": "FINALLY",
             "for": "FOR",
@@ -82,6 +81,7 @@ class PyCoolLexer(object):
             "lazy": "LAZY",
             "match": "MATCH",
             "native": "NATIVE",
+            "null": "NULL",
             "object": "OBJECT",
             "package": "PACKAGE",
             "private": "PRIVATE",
@@ -89,11 +89,14 @@ class PyCoolLexer(object):
             "requires": "REQUIRES",
             "return": "RETURN",
             "sealed": "SEALED",
+            "super": "SUPER",
+            "this": "THIS",
             "throw": "THROW",
             "trait": "TRAIT",
             "try": "TRY",
             "type": "TYPE",
             "val": "VAL",
+            "var": "VAR",
             "with": "WITH",
             "yield": "YIELD"
         }
@@ -107,15 +110,20 @@ class PyCoolLexer(object):
         return (
             # Identifiers
             "ID",
+
             # Primitive Types
             "INTEGER", "STRING", "BOOLEAN",
+
             # Discarded
             "COMMENT",
+
             # Literals
             "LEFT_PAREN", "RIGHT_PAREN", "LEFT_BRACE", "RIGHT_BRACE", "COLON", "COMMA", "DOT", "SEMICOLON",
+
             # Operators
             "PLUS", "MINUS", "TIMES", "DIVIDE", "EQUALS", "DOUBLE_EQUALS", "LESS_THAN", "LESS_THAN_EQUAL",
             "ASSIGNMENT", "BANG", "INT_COMPLEMENT", "NOT",
+            
             # Special Operators
             "ACTION"
         )
@@ -147,77 +155,77 @@ class PyCoolLexer(object):
 
     # COMPLEX TOKENS LEXING RULES.
     integer_rule = r'\d+'
+    boolean_rule = r'true|false'
     string_rule = r'\"(\\.|[^"])*\"'
     identifier_rule = r'[a-zA-Z_][a-zA-Z_0-9]*'
     newline_rule = r'\n+'
     whitespace_rule = r'[\ \t\s]+'
     comments_rule = r'(\(\*(.|\n)*?\*\))|(\-\-.*)'
-    boolean_rule = r'true|false'
 
     @TOKEN(boolean_rule)
-    def t_BOOLEAN(self, t):
+    def t_BOOLEAN(self, token):
         """
         The Bool Primitive Type Token Rule.
         """
-        t.value = True if t.value == 'true' else False
-        return t
+        token.value = True if token.value == "true" else False
+        return token
 
     @TOKEN(integer_rule)
-    def t_INTEGER(self, t):
+    def t_INTEGER(self, token):
         """
         The Integer Primitive Type Token Rule.
         """
-        t.value = int(t.value)
-        return t
+        token.value = int(token.value)
+        return token
 
     @TOKEN(string_rule)
-    def t_STRING(self, t):
+    def t_STRING(self, token):
         """
         The String Primitive Type Token Rule.
         """
-        t.value = str(t.value)
-        return t
+        token.value = str(token.value)
+        return token
 
     @TOKEN(identifier_rule)
-    def t_ID(self, t):
+    def t_ID(self, token):
         """
         The Identifier Token Rule.
         """
         # Check for reserved words
-        t.type = self.basic_reserved.get(t.value, 'ID')
-        return t
+        token.type = self.basic_reserved.get(token.value, 'ID')
+        return token
 
     @TOKEN(comments_rule)
-    def t_COMMENT(self, t):
+    def t_COMMENT(self, token):
         """
         The Single-Line and Multi-Line Comments Rule. It ignores all comments lines.
         """
         pass
 
     @TOKEN(whitespace_rule)
-    def t_WHITESPACE(self, t):
+    def t_WHITESPACE(self, token):
         """
         The Whitespace Token Rule.
         This rule replaces the PLY t_ignore simple regex rule (t_ignore = r' \t').
         """
         pass
 
-    # IGNORED CHARACTERS
-    t_ignore = r''       # No ignored characters.
+    # # Empty Ignored Characters Rule
+    t_ignore = r''
 
     @TOKEN(newline_rule)
-    def t_newline(self, t):
+    def t_newline(self, token):
         """
         The Newline Token Rule.
         """
-        t.lexer.lineno += len(t.value)
+        token.lexer.lineno += len(token.value)
 
-    def t_error(self, t):
+    def t_error(self, token):
         """
         Error Handling Rule.
         """
-        print("Illegal character '%s'" % t.value[0])
-        t.lexer.skip(1)
+        print("Illegal character {0}".format(token.value[0]))
+        token.lexer.skip(1)
 
     # ################### END OF LEXICAL TOKENS RULES DECLARATION ####################
 
