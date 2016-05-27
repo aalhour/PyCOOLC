@@ -52,7 +52,7 @@ A preliminary note on the meaning of postfixes in left-hand-side symbols:
 <exprns-ne>      ::= <expr>
                  |   <expr>, <exprns-ne>
 
-<expr>           ::= <assignment>
+<expr>           ::= ID <- <expr>
                  |   <expr><at-type>.ID( <exprns> )
                  |   <if-then-else>
                  |   <while>
@@ -76,8 +76,6 @@ A preliminary note on the meaning of postfixes in left-hand-side symbols:
                  |   string
                  |   true
                  |   false
-
-<assignment>     ::= ID <- <expr>
 
 <at-type>        ::= @TYPE
                  |   ""
