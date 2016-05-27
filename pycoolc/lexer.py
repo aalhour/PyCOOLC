@@ -23,6 +23,7 @@ class PyCoolLexer(object):
         self.lexer = None               # ply lexer instance
         self.tokens = ()                # ply tokens collection
         self.reserved = {}              # ply reserved keywords map
+        self.last_token = None          # last returned token
         if post_init_build is True:     # build right after instantiation?
             self.build()
 
@@ -104,7 +105,7 @@ class PyCoolLexer(object):
     @property
     def tokens_collection(self):
         """
-        List of Cool Syntax Tokens.
+        Collection of COOL Syntax Tokens.
         :return: Tuple.
         """
         return (
@@ -114,44 +115,110 @@ class PyCoolLexer(object):
             # Primitive Types
             "INTEGER", "STRING", "BOOLEAN",
 
-            # Discarded
-            "COMMENT",
-
             # Literals
-            "LEFT_PAREN", "RIGHT_PAREN", "LEFT_BRACE", "RIGHT_BRACE", "COLON", "COMMA", "DOT", "SEMICOLON",
+            "LPAREN", "RPAREN", "LBRACE", "RBRACE", "COLON", "COMMA", "DOT", "SEMICOLON", "AT",
 
             # Operators
-            "PLUS", "MINUS", "TIMES", "DIVIDE", "EQUALS", "DOUBLE_EQUALS", "LESS_THAN", "LESS_THAN_EQUAL",
-            "ASSIGNMENT", "BANG", "INT_COMPLEMENT", "NOT",
+            "PLUS", "MINUS", "TIMES", "DIVIDE", "EQUALS", "LTHAN", "LTEQ", "ASSIGNMENT", "BANG", "INT_COMP", "NOT",
             
             # Special Operators
-            "ACTION"
+            "ACTION",
+
+            # Discarded
+            "COMMENT"
         )
+
+    def build(self, **kwargs):
+        """
+        Builds the PyCoolLexer instance with lex.lex() by binding the tokens list, reserved keywords map and lexer
+        object in the current instance scope.
+        :param kwargs: lex.lex() config parameters.
+        :return: None
+        """
+        self.reserved = self.basic_reserved
+        self.tokens = self.tokens_collection + tuple(self.reserved.values())
+        self.lexer = lex.lex(module=self, **kwargs)
+
+    def get_ply_lex(self):
+        """
+        Returns a reference to the internal PLY lexer (self.lexer) object.
+        :return: self.lexer
+        """
+        return self.lexer
+
+    def input(self, cool_program_source_code):
+        """
+        A wrapper around the internal self.lexer.input() method.
+        :param cool_program_source_code: COOL program source code as a string.
+        :return: None.
+        """
+        if self.lexer is None:
+            raise Exception("Lexer was not built. Try calling the build() method first, and then tokenize().")
+
+        self.lexer.input(cool_program_source_code)
+
+    def token(self):
+        """
+        A wrapper around the internal self.lexer.token() method.
+        :return: Token.
+        """
+        if self.lexer is None:
+            raise Exception("Lexer was not built. Try building the lexer with the build() method.")
+
+        self.last_token = self.lexer.token()
+        return self.last_token
+
+    def test(self, program_source_code):
+        """
+        Given a string program source code, try to lexically analyse it printing the results to stdout.
+        :param program_source_code: String.
+        :return: None.
+        """
+        if self.lexer is None:
+            raise Exception("Lexer was not built. Try calling the build() method first, and then test().")
+
+        self.input(program_source_code)
+        for token in self.lexer:
+            print(token)
+
+    # ################### ITERATOR PROTOCOL ############################################
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        t = self.token()
+        if t is None:
+            raise StopIteration
+        return t
+
+    def next(self):
+        return self.__next__()
 
     # ################### START OF LEXICAL TOKENS RULES DECLARATION ####################
 
     # SIMPLE TOKENS RULES
-    t_LEFT_PAREN = r'\)'            # (
-    t_RIGHT_PAREN = r'\('          # )
-    t_LEFT_BRACE = r'\{'            # {
-    t_RIGHT_BRACE = r'\}'           # }
-    t_COLON = r'\:'                 # :
-    t_COMMA = r'\,'                 # ,
-    t_DOT = r'\.'                   # .
-    t_SEMICOLON = r'\;'             # ;
-    t_TIMES = r'\*'                 # *
-    t_DIVIDE = r'\/'                # /
-    t_PLUS = r'\+'                  # +
-    t_MINUS = r'\-'                 # -
-    t_INT_COMPLEMENT = r'~'         # ~
-    t_DOUBLE_EQUALS = r'\=\='       # ==
-    t_LESS_THAN = r'\<'             # <
-    t_EQUALS = r'\='                # =
-    t_LESS_THAN_EQUAL = r'\<\='     # <=
-    t_ASSIGNMENT = r'\<\-'          # <-
-    t_BANG = r'\!'                  # !
-    t_NOT = r'not|NOT'              # not
-    t_ACTION = r'\=\>'              # =>
+    t_LPAREN = r'\)'        # (
+    t_RPAREN = r'\('        # )
+    t_LBRACE = r'\{'        # {
+    t_RBRACE = r'\}'        # }
+    t_COLON = r'\:'         # :
+    t_COMMA = r'\,'         # ,
+    t_DOT = r'\.'           # .
+    t_SEMICOLON = r'\;'     # ;
+    t_AT = r'\@'            # @
+    t_TIMES = r'\*'         # *
+    t_DIVIDE = r'\/'        # /
+    t_PLUS = r'\+'          # +
+    t_MINUS = r'\-'         # -
+    t_INT_COMP = r'~'       # ~
+    t_LTHAN = r'\<'         # <
+    t_EQUALS = r'\='        # =
+    t_LTEQ = r'\<\='        # <=
+    t_ASSIGNMENT = r'\<\-'  # <-
+    t_BANG = r'\!'          # !
+    t_NOT = r'not'          # not
+    t_ACTION = r'\=\>'      # =>
 
     # COMPLEX TOKENS LEXING RULES.
     integer_rule = r'\d+'
@@ -238,73 +305,10 @@ class PyCoolLexer(object):
 
     # ################### END OF LEXICAL TOKENS RULES DECLARATION ####################
 
-    def build(self, **kwargs):
-        """
-        Builds the PyCoolLexer instance with lex.lex() by binding the tokens list, reserved keywords map and lexer
-        object in the current instance scope.
-        :param kwargs: lex.lex() config parameters.
-        :return: None
-        """
-        self.reserved = self.basic_reserved
-        self.tokens = self.tokens_collection + tuple(self.basic_reserved.values())
-        self.lexer = lex.lex(module=self, **kwargs)
-
-    def get_ply_lex(self):
-        """
-        Returns a reference to the internal PLY lexer (self.lexer) object.
-        :return: self.lexer
-        """
-        return self.lexer
-
-    def input(self, cool_program_source_code):
-        """
-        A wrapper around the internal self.lexer.input() method.
-        :param cool_program_source_code: COOL program source code as a string.
-        :return: None.
-        """
-        if self.lexer is None:
-            raise Exception("Lexer was not built. Try calling the build() method first, and then tokenize().")
-
-        self.lexer.input(cool_program_source_code)
-
-    def token(self):
-        """
-        A wrapper around the internal self.lexer.token() method.
-        :return: Token.
-        """
-        if self.lexer is None:
-            raise Exception("Lexer was not built. Try building the lexer with the build() method.")
-
-        return self.lexer.token()
-
-    def test(self, program_source_code):
-        """
-        Given a string program source code, try to lexically analyse it printing the results to stdout.
-        :param program_source_code: String.
-        :return: None.
-        """
-        if self.lexer is None:
-            raise Exception("Lexer was not built. Try calling the build() method first, and then test().")
-
-        self.input(program_source_code)
-        for token in self.lexer:
-            print(token)
-
-    ###
-    # Iterator Interface
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        t = self.token()
-        if t is None:
-            raise StopIteration
-        return t
-
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
-        print("Usage: ./parser.py program.cl")
+        print("Usage: ./lexer.py program.cl")
         exit()
     elif not str(sys.argv[1]).endswith(".cl"):
         print("Cool program source code files must end with .cl extension.")
