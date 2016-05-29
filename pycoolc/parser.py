@@ -11,8 +11,8 @@
 
 import sys
 import ply.yacc as yacc
-from ast import *
-from lexer import PyCoolLexer
+from pycoolc.ast import *
+from pycoolc.lexer import PyCoolLexer
 
 
 class PyCoolParser(object):
@@ -63,7 +63,7 @@ class PyCoolParser(object):
         """
         program : classes
         """
-        parse[0] = ProgramNode(classes=parse[1])
+        parse[0] = Program(classes=parse[1])
 
     # <classes> ::= <class> | <class> <classes>
     def p_classes(self, parse):
@@ -89,7 +89,7 @@ class PyCoolParser(object):
         """
         class : CLASS TYPE inheritance LBRACE features_optional RBRACE SEMICOLON
         """
-        parse[0] = ClassNode(name=parse[2], inherits=parse[3], features=parse[5])
+        parse[0] = Type(name=parse[2], inherits=parse[3], features=parse[5])
 
     # <inheritance> ::= INHERITS TYPE | <empty>
     def p_inheritance(self, parse):
@@ -99,12 +99,12 @@ class PyCoolParser(object):
         """
         bnf_rule = "<inheritance> ::= inherits TYPE | empty"
 
-        # Case of first rhs (inherits Type)
-        if len(parse) == 2:
-            parse[0] = InheritanceNode(inheritance_type=p[2])
         # Case of second rhs (empty)
-        elif len(parse) == 1:
-            parse[0] = InheritanceNode(inheritance_type=p[1])
+        if len(parse) == 1:
+            parse[0] = None
+        # Case of first rhs (inherits Type)
+        elif len(parse) == 2:
+            parse[0] = Inheritance(inheritance_type=p[2])
         # Unexpected production
         else:
             raise SyntaxError("Unexpected number of symbols: {0}, while parsing grammar rule: {1}".format(
@@ -117,9 +117,9 @@ class PyCoolParser(object):
                             | empty
         """
         if parse[1].type == "empty":
-            parse[0] = FeaturesNode(features=None)
+            parse[0] = None
         else:
-            parse[0] = FeaturesNode(features=tuple(parse[1]))
+            parse[0] = Features(features=parse[1])
 
     # <features> ::= <feature> | <feature> <features>
     def p_features(self, parse):
@@ -129,58 +129,68 @@ class PyCoolParser(object):
         """
         bnf_rule = "<features> ::= <feature> | <feature> <features>"
 
-        if len(parse) == 1:
-            parse[0] = FeaturesNode(features=(parse[1],))
-        elif len(parse) == 2:
-            parse[0] = FeaturesNode(features=tuple(parse[1]))
+        if len(parse) == 2:
+            parse[0] = (parse[1],)
+        elif len(parse) == 3:
+            parse[0] = (parse[1],) + parse[2]
         else:
             raise SyntaxError("Unexpected number of symbols: {0}, while parsing grammar rule: {1}".format(
                 parse, bnf_rule))
 
-    # <featue> ::= ID ( <features_wo_assign_optional> ) : TYPE { <expr> } ; | formal ;
+    # <featue> ::= <attribute> | <formal>
     def p_feature(self, parse):
         """
-        feature : ID LPAREN formals_wo_assign_optional RPAREN COLON TYPE LBRACE expr RBRACE SEMICOLON
-                | formal SEMICOLON
+        feature : attribute
+                | formal
         """
-        bnf_rule = "<featue> ::= ID ( <features_wo_assign_optional> ) : TYPE { <expr> } ; | formal ;"
+        parse[0] = parse[1]
 
-        if len(parse) == 2:
-            parse[0] = parse[1]
-        elif len(parse) == 10:
-            parse[0] = AttributeNode(identifier=parse[1], formals=parse[2], attr_type=parse[6], expression=parse[7])
-        else:
-            raise SyntaxError("Unexpected number of symbols: {0}, while parsing grammar rule: {1}".format(
-                parse, bnf_rule))
+    # <attribute> : ID ( <formals_wo_assign_optional> ) : TYPE { expr } ;
+    def p_attribute(self, parse):
+        """
+        attribute : ID LPAREN formals_wo_assign_optional RPAREN COLON TYPE LBRACE expr RBRACE SEMICOLON
+        """
+        p[0] = Attribute(identifier=parse[1], attr_type=parse[6], formals=parse[3], expression=parse[8])
 
-    # formal : ID : TYPE assignment_optional
+    # <formal> : ID : TYPE <assignment_optional> ;
     def p_formal(self, parse):
         """
-        formal : ID COLON TYPE assignment_optional
+        formal : ID COLON TYPE assignment_optional SEMICOLON
         """
-        if parse[4].type == "empty":
-            parse[0] = FormalNode(identifier=parse[1], formal_type=parse[3], assignment=None)
-        else:
-            parse[0] = FormalNode(identifier=parse[1], formal_type=parse[3], assignment=parse[4])
+        assign_expr = None if parse[4].type == "empty" else parse[4]
+        parse[0] = Formal(identifier=parse[1], formal_type=parse[3], assignment_expr=assign_expr)
 
-    # assignment_optional : <- expr
+    # <assignment_optional> : "<-" <expr>
     def p_assignment_optional(self, parse):
         """
         assignment_optional : ASSIGNMENT expr
                             | empty
         """
-        if parse[1].type is None:
-            parse[0] = None
-        else:
-            parse[0] = Expr(parse[1])
+        bnf_rule = "<assignment_optional> : \"<-\" <expr>"
 
-    # <formals> ::= <formal_wo_assign> | <formal_wo_assign> <formals>
+        if len(parse) == 2 and parse[1].type is "empty":
+            parse[0] = None
+        elif len(parse) == 3:
+            parse[0] = parse[1]
+        else:
+            raise SyntaxError("Unexpected sequence of symbols: {0}, while parsing grammar rule: {1}".format(
+                parse, bnf_rule))
+
+    # <formals> ::= <formal> | <formal> <formals>
     def p_formals(self, parse):
         """
         formals : formal
                 | formal formals
         """
-        pass
+        bnf_rule = "<formals> ::= <formal> | <formal> <formals>"
+
+        if len(parse) == 2:
+            parse[0] = (parse[1],)
+        elif len(parse) == 3:
+            parse[0] = (parse[1],) + parse[2]
+        else:
+            raise SyntaxError("Unexpected number of symbols: {0}, while processing grammar rule: {1}".format(
+                parse, bnf_rule))
 
     # <formals_wo_assign_optional> ::= <formal_wo_assign> | <formal_wo_assign> <formals_wo_assign> | <empty>
     def p_formals_wo_assign_optional(self, parse):
@@ -189,7 +199,19 @@ class PyCoolParser(object):
                                     | formal_wo_assign formals_wo_assign
                                     | empty
         """
-        pass
+        bnf_rule = \
+            "<formals_wo_assign_optional> ::= <formal_wo_assign> | <formal_wo_assign> <formals_wo_assign> | <empty>"
+
+        if len(parse) == 2:
+            if parse[1].type == "empty":
+                parse[0] = None
+            else:
+                parse[0] = parse[1]
+        elif len(parse) == 3:
+            parse[0] = (parse[1],) + parse[2]
+        else:
+            raise SyntaxError("Unexpected number of symbols: {0}, while processing grammar rule: {1}".format(
+                parse, bnf_rule))
 
     # <formals_wo_assign> ::= <formal_wo_assign> | <formal_wo_assign> <formals_wo_assign>
     def p_formals_wo_assign(self, parse):
@@ -197,14 +219,21 @@ class PyCoolParser(object):
         formals_wo_assign   : formal_wo_assign
                             | formal_wo_assign formals_wo_assign
         """
-        pass
+        bnf_rule = "<formals_wo_assign> ::= <formal_wo_assign> | <formal_wo_assign> <formals_wo_assign>"
+        if len(parse) == 2:
+            parse[0] = (parse[1],)
+        elif len(parse) == 3:
+            parse[0] = (parse[1],) + parse[2]
+        else:
+            raise SyntaxError("Unexpected number of symbols: {0}, while processing grammar rule: {1}".format(
+                parse, bnf_rule))
 
     # <formal_wo_assign> ::= ID : TYPE
     def p_formal_wo_assign(self, parse):
         """
         formal_wo_assign : ID COLON TYPE
         """
-        parse[0] = FormalNode(identifier=parse[1], formal_type=parse[3], assignment=None)
+        parse[0] = Formal(identifier=parse[1], formal_type=parse[3], assignment_expr=None)
 
     # <expressions_optional> ::= <expr> | <expr> , <expressions> | <empty>
     def p_expressions_optional(self, parse):
@@ -213,51 +242,88 @@ class PyCoolParser(object):
                                 | expr COMMA expressions
                                 | empty
         """
-        pass
+        bnf_rule = "<expressions_optional> ::= <expr> | <expr> , <expressions> | <empty>"
+
+        if len(parse) == 2:
+            if parse[1].type == "empty":
+                parse[0] = None
+            else:
+                parse[0] = (parse[1],)
+        elif len(parse) == 4:
+            parse[0] = (parse[1],) + parse[3]
+        else:
+            raise SyntaxError("Unexpected number of symbols: {0}, while parsing grammar rule: {1}".format(
+                parse, bnf_rule))
 
     # <expressions> ::= <expr> | <expr> , <expressions>
-    def p_expressions_non_empty(self, parse):
+    def p_expressions(self, parse):
         """
-        expressions   : expr
-                                | expr COMMA expressions
+        expressions : expr
+                    | expr COMMA expressions
         """
-        pass
+        bnf_rule = "<expressions> ::= <expr> | <expr> , <expressions>"
+
+        if len(parse) == 2:
+            parse[0] = (parse[1],)
+        elif len(parse) == 4:
+            parse[0] = (parse[1],) + parse[3]
+        else:
+            raise SyntaxError("Unexpected number of symbols: {0}, while parsing grammar rule: {1}".format(
+                parse, bnf_rule))
 
     def p_expr(self, parse):
         """
-        expr    :   ID ASSIGNMENT expr
-                |   expr at_type DOT ID LPAREN expressions_optional RPAREN
-                |   if_then_else_fi
-                |   while_loop_pool
-                |   LBRACE expressions RBRACE
-                |   let
-                |   case_esac
-                |   NEW TYPE
-                |   ISVOID expr
-                |   expr PLUS expr
-                |   expr MINUS expr
-                |   expr TIMES expr
-                |   expr DIVIDE expr
-                |   INT_COMP expr
-                |   expr LTHAN expr
-                |   expr LTEQ expr
-                |   expr EQUALS expr
-                |   NOT expr
-                |   LPAREN expr RPAREN
-                |   ID
+        expr    :   ID
                 |   STRING
                 |   INTEGER
                 |   BOOLEAN
+                |   let
+                |   case_esac
+                |   if_then_else_fi
+                |   while_loop_pool
+                |   unary_operation
+                |   binary_operation
+                |   NEW TYPE
+                |   ID ASSIGNMENT expr
+                |   LPAREN expr RPAREN
+                |   LBRACE expressions RBRACE
+                |   expr at_type DOT ID LPAREN expressions_optional RPAREN
         """
-        pass
+        if len(parse) == 2:
+            parse[0] = parse[1]
+        elif len(parse) == 3 and parse[1].type == "NEW":
+            parse[0] = NewTypeExpr(new_type=parse[2])
+        elif len(parse) == 4:
+            # LPAREN expr RPAREN
+            if parse[1].type == "LPAREN" and parse[3].type == "RPAREN":
+                parse[0] = parse[2]
+            # LBRACE expressions RBRACE
+            elif parse[1].type == "LBRACE" and parse[3].type == "RBRACE":
+                parse[0] = BlockExpr(expressions_block=parse[2])
+            # ID ASSIGNMENT expr
+            else:
+                parse[0] = AssignmentExpr(identifier=parse[1], expression=parse[2])
+        elif len(parse) == 8:
+            parse[0] = MethodCallExp(expression=parse[1], statically_dispatched_type=parse[2],
+                                     method_identifier=parse[4], call_params=parse[6])
+        else:
+            raise SyntaxError("Unexpected number of symbols: {0}".format(parse))
 
-    # at_type ::= AT TYPE | empty
+    # <at_type> ::= AT TYPE | empty
     def p_at_type(self, parse):
         """
         at_type : AT TYPE
                 | empty
         """
-        pass
+        bnf_rule = "<at_type> ::= AT TYPE | empty"
+
+        if len(parse) == 2 and parse[1].type == "empty":
+            p[0] = None
+        elif len(parse) == 3:
+            parse[0] = parse[2]
+        else:
+            raise SyntaxError("Unexpected number of symbols: {0}, while parsing grammar rule: {1}".format(
+                parse, bnf_rule))
 
     # if_then_else_fi ::= FI expr THEN expr ELSE expr FI
     def p_if_then_else_fi(self, parse):
@@ -299,6 +365,26 @@ class PyCoolParser(object):
     def p_action(self, parse):
         """
         action : ID COLON TYPE ARROW expr
+        """
+        pass
+
+    def p_unary_operation(self, parse):
+        """
+        unary_operation :   ISVOID expr
+                        |   INT_COMP expr
+                        |   NOT expr
+        """
+        pass
+
+    def p_binary_operation(self, parse):
+        """
+        binary_operation    :   expr PLUS expr
+                            |   expr MINUS expr
+                            |   expr TIMES expr
+                            |   expr DIVIDE expr
+                            |   expr LTHAN expr
+                            |   expr LTEQ expr
+                            |   expr EQUALS expr
         """
         pass
 
