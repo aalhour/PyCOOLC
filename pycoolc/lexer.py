@@ -184,10 +184,10 @@ class PyCoolLexer(object):
             "LPAREN", "RPAREN", "LBRACE", "RBRACE", "COLON", "COMMA", "DOT", "SEMICOLON", "AT",
 
             # Operators
-            "PLUS", "MINUS", "TIMES", "DIVIDE", "EQUALS", "LTHAN", "LTEQ", "ASSIGNMENT", "BANG", "INT_COMP", "NOT",
+            "PLUS", "MINUS", "TIMES", "DIVIDE", "EQUALS", "LTHAN", "LTEQ", "ASSIGN", "BANG", "INT_COMP", "NOT",
 
             # Special Operators
-            "ACTION",
+            "ARROW",
 
             # Discarded
             "COMMENT"
@@ -223,6 +223,7 @@ class PyCoolLexer(object):
             "Bool": "BOOL_TYPE",
             "Int": "INT_TYPE",
             "IO": "IO_CLASS",
+            "Main": "MAIN_TYPE",
             "Object": "OBJECT_TYPE",
             "String": "STRING_TYPE",
             "SELF_TYPE": "SELF_TYPE"
@@ -290,10 +291,10 @@ class PyCoolLexer(object):
     t_LTHAN = r'\<'         # <
     t_EQUALS = r'\='        # =
     t_LTEQ = r'\<\='        # <=
-    t_ASSIGNMENT = r'\<\-'  # <-
+    t_ASSIGN = r'\<\-'      # <-
     t_BANG = r'\!'          # !
     t_NOT = r'not'          # not
-    t_ACTION = r'\=\>'      # =>
+    t_ARROW = r'\=\>'       # =>
 
     # COMPLEX TOKENS LEXING RULES.
     integer_rule = r'\d+'

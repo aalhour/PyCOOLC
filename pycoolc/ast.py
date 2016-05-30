@@ -36,14 +36,14 @@ class Program(BaseNode):
 
 
 class Type(BaseNode):
-    def __init__(self, name, inherits, features):
+    def __init__(self, name, inherits, features_seq):
         super(Type, self).__init__()
         self.name = name
         self.inherits = inherits
-        self.features = features
+        self.features_seq = features_seq
 
     def to_tuple(self):
-        return tuple([self._clsname, self.name, self.inherits, self.features])
+        return tuple([self._clsname, self.name, self.inherits, self.features_seq])
 
 
 class Inheritance(BaseNode):
@@ -60,15 +60,15 @@ class Feature(BaseNode):
 
 
 class Attribute(Feature):
-    def __init__(self, identifier, attr_type, formals, expression):
+    def __init__(self, identifier, attr_type, formals_seq, expression):
         super(Attribute, self).__init__()
         self.identifier = identifier
         self.type = attr_type
         self.expression = expression
-        self.formals = formals
+        self.formals_seq = formals_seq
 
     def to_tuple(self):
-        return tuple([self._clsname, self.identifier, self.type, self.expression, self.formals])
+        return tuple([self._clsname, self.identifier, self.type, self.expression, self.formals_seq])
 
 
 class Formal(Feature):
@@ -76,26 +76,51 @@ class Formal(Feature):
         super(Formal, self).__init__()
         self.identifier = identifier
         self.type = formal_type
-        self.assignment = assignment_expr
+        self.assignment_expr = assignment_expr
 
     def to_tuple(self):
-        return tuple([self._clsname, self.identifier, self.type, self.assignment])
+        return tuple([self._clsname, self.identifier, self.type, self.assignment_expr])
 
 
 class Expr(BaseNode):
     def __init__(self):
-        pass
+        super(Expr, self).__init__()
 
-    def get_expr_type(self):
-        pass
+
+class IdentifierExpr(Expr):
+    def __init__(self, identifier):
+        super(IdentifierExpr, self).__init__()
+        self.identifier = identifier
+
+    def to_tuple(self):
+        return tuple([self._clsname, self.identifier])
 
 
 class IntegerExpr(Expr):
-    pass
+    def __init__(self, value):
+        super(IntegerExpr, self).__init__()
+        self.value = int(value)
+
+    def to_tuple(self):
+        return tuple([self._clsname, self.value])
 
 
 class StringExpr(Expr):
-    pass
+    def __init__(self, value):
+        super(StringExpr, self).__init__()
+        self.value = str(value)
+
+    def to_tuple(self):
+        return tuple([self._clsname, self.value])
+
+
+class BooleanExpr(Expr):
+    def __init__(self, value):
+        super(BooleanExpr, self).__init__()
+        self.value = value is True
+
+    def to_tuple(self):
+        return tuple([self._clsname, self.value])
 
 
 class VariableExpr(Expr):
@@ -138,15 +163,37 @@ class BlockExpr(Expr):
         return tuple([self._clsname, self.expressions_block])
 
 
-class MethodCallExp(Expr):
-    def __init__(self, expression, statically_dispatched_type, method_identifier, call_params):
-        super(MethodCallExp, self).__init__()
-        self.expression = expression
+class DispatchExpr(Expr):
+    def __init__(self, identifier_expr, statically_dispatched_type, attribute_id, arguments_seq):
+        super(DispatchExpr, self).__init__()
+        self.identifier_expr = identifier_expr
         self.statically_dispatched_type = statically_dispatched_type
-        self.method_identifier = method_identifier
-        self.call_params = call_params
+        self.attribute_id = attribute_id
+        self.arguments_seq = arguments_seq if arguments_seq is not None else tuple()
 
     def to_tuple(self):
         return tuple([
-            self._clsname, self.expression, self.statically_dispatched_type, self.method_identifier, self.call_params])
+            self._clsname, self.identifier_expr, self.statically_dispatched_type, self.attribute_id, self.arguments_seq
+        ])
+
+
+class LetExpr(Expr):
+    def __init__(self, formals_seq, in_expr):
+        super(LetExpr, self).__init__()
+        self.formals_seq = formals_seq
+        self.in_expr = in_expr
+
+    def to_tuple(self):
+        return tuple([self._clsname, self.formals_seq, self.in_expr])
+
+
+class ConditionalExpr(Expr):
+    def __init__(self, condition, true_eval, false_eval):
+        super(ConditionalExpr, self).__init__()
+        self.condition = condition
+        self.true_eval = true_eval
+        self.false_eval = false_eval
+
+    def to_tuple(self):
+        return tuple([self._clsname, self.condition, self.true_eval, self.false_eval])
 
