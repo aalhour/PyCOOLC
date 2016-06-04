@@ -184,7 +184,7 @@ class PyCoolLexer(object):
             "LPAREN", "RPAREN", "LBRACE", "RBRACE", "COLON", "COMMA", "DOT", "SEMICOLON", "AT",
 
             # Operators
-            "PLUS", "MINUS", "TIMES", "DIVIDE", "EQUALS", "LTHAN", "LTEQ", "ASSIGN", "BANG", "INT_COMP", "NOT",
+            "PLUS", "MINUS", "TIMES", "DIVIDE", "EQUALS", "LTHAN", "LTEQ", "ASSIGN", "INT_COMP", "NOT",
 
             # Special Operators
             "ARROW",
@@ -217,12 +217,13 @@ class PyCoolLexer(object):
             "override": "OVERRIDE",
             "pool": "POOL",
             "self": "SELF",
+            "then": "THEN",
             "while": "WHILE",
 
             # BASIC TYPES - alphabetical order
             "Bool": "BOOL_TYPE",
             "Int": "INT_TYPE",
-            "IO": "IO_CLASS",
+            "IO": "IO_TYPE",
             "Main": "MAIN_TYPE",
             "Object": "OBJECT_TYPE",
             "String": "STRING_TYPE",
@@ -274,8 +275,8 @@ class PyCoolLexer(object):
     # ################# START OF LEXICAL ANALYSIS RULES DECLARATION ####################
 
     # SIMPLE TOKENS RULES
-    t_LPAREN = r'\)'        # (
-    t_RPAREN = r'\('        # )
+    t_LPAREN = r'\('        # (
+    t_RPAREN = r'\)'        # )
     t_LBRACE = r'\{'        # {
     t_RBRACE = r'\}'        # }
     t_COLON = r'\:'         # :
@@ -292,7 +293,6 @@ class PyCoolLexer(object):
     t_EQUALS = r'\='        # =
     t_LTEQ = r'\<\='        # <=
     t_ASSIGN = r'\<\-'      # <-
-    t_BANG = r'\!'          # !
     t_NOT = r'not'          # not
     t_ARROW = r'\=\>'       # =>
 
@@ -300,7 +300,7 @@ class PyCoolLexer(object):
     integer_rule = r'\d+'
     boolean_rule = r'true|false'
     string_rule = r'\"(\\.|[^"])*\"'
-    type_rule = r'[A-Z][a-zA-Z_0-9]*'
+    type_rule = r'SELF_TYPE|Object|IO|Main|String|Int|Bool|[A-Z][a-zA-Z_0-9]*'
     identifier_rule = r'[a-z_][a-zA-Z_0-9]*'
     newline_rule = r'\n+'
     whitespace_rule = r'[\ \t\s]+'
