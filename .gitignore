@@ -6,3 +6,4 @@ pycoolc/__pycache__/
 *.egg
 *.egg-info
 *.out
+parsetab.py
