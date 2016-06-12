@@ -1,4 +1,4 @@
-![PyCOOLC Logo](http://i.imgur.com/pLIqWi5.png)
+![PyCOOLC](misc/pycoolc_logo.png)
 
 A (work in progress) compiler for **[COOL](https://en.wikipedia.org/wiki/Cool_(programming_language))** (**C**lassroom **O**bject **O**riented **L**anguage), targeting the MIPS 32-bit Architecture and written entirely in Python 3.
 
@@ -27,9 +27,9 @@ A formal treatment of **COOL**'s Context-Free Grammar can be found at [/docs/CFG
 
 PyCOOLC follows classical compiler architecture, it consists mainly of two main logical components: Frontend and Backend.
 
-Given a program file(s), the compiler starts off at the Frotend level, in which it progresses through the compilation process in terms of phases. Firstly, it enters the scanning phase in which Lexical Analysis is done and as a result the program is turned into a list of tokens. It then progresses into the parsing phase where Syntactical Analysis of the token stream is done based on the the language grammar rules. If parsing finishes successfully, an AST (Abstract Syntax Tree) is of the program source code will be generated as a result. After that, the compiler enters the Semantic Analysis phase in which it performs Type Checking and various other tasks on the generated AST. The completion of Semantic Analysis marks the finish line of the Compiler Frontend component.
+Given a program file(s), the compiler starts off at the Frotend level, in which it progresses through the compilation process in terms of phases. Firstly, it enters the scanning phase in which Lexical Analysis is done and as a result the program is turned into a list of tokens. It then progresses into the parsing phase where Syntactical Analysis of the token stream is done based on the the language grammar rules. If parsing finishes successfully, an AST (Abstract Syntax Tree) of the program source code is generated as a result. After that, the compiler enters the Semantic Analysis phase in which it performs Type Checking and various other tasks on the generated AST. The completion of Semantic Analysis marks the finish line of the Compiler Frontend component.
 
-Compiler Backend consists of two additional phases: Optimization and Code Generation. Optimization starts right after Semantic Analysis with the modified AST, it modifies the AST even further eliminating dead code and doing various other optimization tasks, preparing it for the 5th, and last, phase of the compilation process, that is Code Generation. In the Code Generation phase, the compiler processes the final version of the AST emitting MIPS 32-bit Assembly Machine Code.
+Compiler Backend consists of two additional phases: Optimization and Code Generation. Optimization starts right after Semantic Analysis with the modified AST, it modifies the AST even further by carrying several optimization tasks such as: eliminating dead code, preparing it for the 5th, and last, phase of the compilation process: Code Generation. In the Code Generation phase, the compiler processes final version of the AST emitting MIPS 32-bit Assembly Machine Code.
 
 
 ## DEV. STATUS
