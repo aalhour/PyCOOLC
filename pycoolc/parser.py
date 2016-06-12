@@ -71,7 +71,7 @@ class PyCoolParser(object):
             ('right', 'ISVOID'),
             ('right', 'INT_COMP'),
             ('left', 'AT'),
-            ('left', 'DOT'),
+            ('left', 'DOT')
         )
 
     def p_program(self, parse):
@@ -85,18 +85,10 @@ class PyCoolParser(object):
         classes : classes class
                 | class
         """
-        bnf_rule = "<classes> ::= <class> | <class> <classes>"
-
-        # Case of first rhs terminal production
         if len(parse) == 2:
             parse[0] = (parse[1],)
-        # Case of second rhs production
-        elif len(parse) == 3:
-            parse[0] = parse[1] + (parse[2],)
-        # Unexpected production
         else:
-            raise SyntaxError("Unexpected number of symbols: {0}, while parsing grammar rule: {1}".format(
-                parse, bnf_rule))
+            parse[0] = parse[1] + (parse[2],)
 
     def p_class(self, parse):
         """
@@ -109,18 +101,10 @@ class PyCoolParser(object):
         inheritance_opt : INHERITS some_type
                         | empty
         """
-        bnf_rule = "<inheritance> ::= inherits <type> | empty"
-
-        # Case of second rhs (empty)
         if len(parse) == 2:
-            parse[0] = None
-        # Case of first rhs (inherits some_type)
-        elif len(parse) == 3:
-            parse[0] = Inheritance(parent_type=parse[2])
-        # Unexpected production
+            parse[0] = Inheritance(parent_type="OBJECT_TYPE")
         else:
-            raise SyntaxError("Unexpected number of symbols: {0}, while parsing grammar rule: {1}".format(
-                parse, bnf_rule))
+            parse[0] = Inheritance(parent_type=parse[2])
 
     def p_some_type(self, parse):
         """
@@ -150,15 +134,10 @@ class PyCoolParser(object):
         features : features feature
                  | feature
         """
-        bnf_rule = "<features> ::= <feature> | <feature> <features>"
-
         if len(parse) == 2:
             parse[0] = (parse[1],)
-        elif len(parse) == 3:
-            parse[0] = parse[1] + (parse[2],)
         else:
-            raise SyntaxError("Unexpected number of symbols: {0}, while parsing grammar rule: {1}".format(
-                parse, bnf_rule))
+            parse[0] = parse[1] + (parse[2],)
 
     def p_feature(self, parse):
         """
@@ -185,15 +164,10 @@ class PyCoolParser(object):
         assignment_opt  : ASSIGN expr
                         | empty
         """
-        bnf_rule = "<assignment_opt> : \"<-\" <expr>"
-
-        if parse.slice[1].type is "empty":
+        if len(parse) == 2:
             parse[0] = None
-        elif len(parse) == 3:
-            parse[0] = parse[2]
         else:
-            raise SyntaxError("Unexpected sequence of symbols: {0}, while parsing grammar rule: {1}".format(
-                parse, bnf_rule))
+            parse[0] = parse[2]
     
     def p_formal_params_seq_opt(self, parse):
         """
@@ -210,14 +184,10 @@ class PyCoolParser(object):
         formal_params_seq   : formal_params_seq formal_param
                             | formal_param
         """
-        bnf_rule = "<formal_params_seq> ::= <formal_params_seq> <formal_param> | <formal_param>"
         if len(parse) == 2:
             parse[0] = (parse[1],)
-        elif len(parse) == 3:
-            parse[0] = parse[1] + (parse[2],)
         else:
-            raise SyntaxError("Unexpected number of symbols: {0}, while processing grammar rule: {1}".format(
-                parse, bnf_rule))
+            parse[0] = parse[1] + (parse[2],)
 
     def p_formal_param(self, parse):
         """
@@ -237,15 +207,10 @@ class PyCoolParser(object):
         expressions_seq : expressions_seq expr SEMICOLON
                         | expr SEMICOLON
         """
-        bnf_rule = "<expressions_seq> ::= <expressions_seq> <expr> ; | <expr> ;"
-
         if len(parse) == 3:
             parse[0] = (parse[1],)
-        elif len(parse) == 4:
-            parse[0] = parse[1] + (parse[2],)
         else:
-            raise SyntaxError("Unexpected number of symbols: {0}, while parsing grammar rule: {1}".format(
-                parse, bnf_rule))
+            parse[0] = parse[1] + (parse[2],)
 
     def p_arguments_seq_opt(self, parse):
         """
@@ -259,39 +224,37 @@ class PyCoolParser(object):
 
     def p_arguments_seq(self, parse):
         """
-        arguments_seq   : expr COMMA arguments_seq
+        arguments_seq   : arguments_seq COMMA expr
                         | expr
         """
-        bnf_rule = "<arguments_seq> ::= <expr> COMMA arguments_seq | <expr>"
-
         if len(parse) == 2:
             parse[0] = (parse[1],)
-        elif len(parse) == 4:
-            parse[0] = (parse[1],) + parse[3]
         else:
-            raise SyntaxError("Unexpected number of symbols: {0}, while parsing grammar rule: {1}".format(
-                parse, bnf_rule))
+            parse[0] = (parse[1],) + parse[3]
 
     def p_expr(self, parse):
         """
-        expr    :   ID
-                |   STRING
-                |   INTEGER
-                |   BOOLEAN
-                |   let
-                |   case_esac
-                |   if_then_else_fi
-                |   while_loop_pool
-                |   unary_operation
-                |   binary_operation
+        expr    :   ID ASSIGN expr
                 |   dynamic_dispatch_expr
                 |   static_dispatch_expr
+                |   ID LPAREN arguments_seq_opt RPAREN
+                |   if_then_fi
+                |   if_then_else_fi
+                |   while_loop_pool
+                |   LBRACE expressions_seq RBRACE
+                |   let
+                |   case_esac
                 |   NEW some_type
                 |   ISVOID ID
-                |   ID ASSIGN expr
+                |   math_arith_operation
+                |   int_comp_operation
+                |   math_comp_operation
+                |   bool_neg_operation
                 |   LPAREN expr RPAREN
-                |   LBRACE expressions_seq RBRACE
-                |   ID LPAREN arguments_seq_opt RPAREN
+                |   ID
+                |   INTEGER
+                |   STRING
+                |   BOOLEAN
         """
         if len(parse) == 2:
             ptype = parse.slice[1].type
@@ -306,35 +269,26 @@ class PyCoolParser(object):
                     parse[0] = BooleanConstant(value=parse.slice[1].value)
             else:
                 parse[0] = parse[1]
-
         # "new Type" or "isvoid(ID)"
         elif len(parse) == 3:
             if parse.slice[1].type == "NEW":
                 parse[0] = NewTypeExpr(new_type=parse[2])
             elif parse.slice[1].type == "ISVOID":
                 parse[0] = IsVoidExpr(expression=parse[2])
-
         # Parenthesized Expr, Block Expr or Assignment
         elif len(parse) == 4:
             # ( expr )
             if parse.slice[1].type == "LPAREN" and parse.slice[3].type == "RPAREN":
                 parse[0] = parse[2]
-
             # { expressions }
             elif parse.slice[1].type == "LBRACE" and parse.slice[3].type == "RBRACE":
                 parse[0] = BlockExpr(expressions=parse[2])
-
             # ID <- expr
             else:
                 parse[0] = AssignmentExpr(identifier=parse[1], expression=parse[3])
-
         # ID ( arguments_seq_opt )
         elif len(parse) == 5:
             parse[0] = DynamicDispatchExpr(identifier_expr=IdentifierExpr("self"), method_id=parse[1], arguments=parse[3])
-
-        # Err
-        else:
-            raise SyntaxError("Unexpected number of symbols: {0}".format(parse))
 
     def p_let(self, parse):
         """
@@ -344,13 +298,19 @@ class PyCoolParser(object):
 
     def p_let_formals_seq(self, parse):
         """
-        let_formals_seq : formal COMMA let_formals_seq
+        let_formals_seq : let_formals_seq COMMA formal
                         | formal
         """
         if len(parse) == 2:
             parse[0] = (parse[1],)
         elif len(parse) == 4:
             parse[0] = (parse[1],) + parse[3]
+
+    def p_if_then_fi(self, parse):
+        """
+        if_then_fi : IF expr THEN expr FI
+        """
+        parse[0] = ConditionalExpr(predicate=parse[2], then_expression=parse[4], else_expression=None)
 
     def p_if_then_else_fi(self, parse):
         """
@@ -386,25 +346,36 @@ class PyCoolParser(object):
         """
         parse[0] = Action(identifier=parse[1], action_type=parse[3], body=parse[5])
 
-    def p_unary_operation(self, parse):
+    def p_math_arith_operation(self, parse):
         """
-        unary_operation : INT_COMP expr
-                        | NOT expr
-        """
-        parse[0] = UnaryOperation(operation=get_operation(parse.slice[1].type), expression=parse[2])
-
-    def p_binary_operation(self, parse):
-        """
-        binary_operation    :   expr PLUS expr
-                            |   expr MINUS expr
-                            |   expr TIMES expr
-                            |   expr DIVIDE expr
-                            |   expr LTHAN expr
-                            |   expr LTEQ expr
-                            |   expr EQUALS expr
+        math_arith_operation    :   expr PLUS expr
+                                |   expr MINUS expr
+                                |   expr TIMES expr
+                                |   expr DIVIDE expr
         """
         parse[0] = BinaryOperation(left_expression=parse[1], right_expression=parse[3],
                                    operation=get_operation(parse.slice[2].type))
+
+    def p_math_comp_operation(self, parse):
+        """
+        math_comp_operation : expr LTHAN expr
+                            | expr LTEQ expr
+                            | expr EQUALS expr
+        """
+        parse[0] = BinaryOperation(left_expression=parse[1], right_expression=parse[3],
+                                   operation=get_operation(parse.slice[2].type))
+
+    def p_int_comp_operation(self, parse):
+        """
+        int_comp_operation  : INT_COMP expr
+        """
+        parse[0] = UnaryOperation(operation=get_operation(parse.slice[1].type), expression=parse[2])
+
+    def p_bool_neg_operation(self, parse):
+        """
+        bool_neg_operation  : NOT expr
+        """
+        parse[0] = UnaryOperation(operation=get_operation(parse.slice[1].type), expression=parse[2])
 
     def p_dynamic_dispatch_expr(self, parse):
         """
@@ -433,6 +404,21 @@ class PyCoolParser(object):
     # ################### END OF FORMAL GRAMMAR RULES DECLARATION ######################
 
 
+# ----------------------------------------------------------------------
+#                Parser as a Standalone Python Program
+#                Usage: ./parser.py cool_program.cl
+# ----------------------------------------------------------------------
+
+def make_parser():
+    """
+    Utility function.
+    :return: PyCoolParser object.
+    """
+    a_parser = PyCoolParser()
+    a_parser.build()
+    return a_parser
+
+
 if __name__ == "__main__":
     if len(sys.argv) != 2:
         print("Usage: ./parser.py program.cl")
@@ -446,8 +432,7 @@ if __name__ == "__main__":
     with open(input_file, encoding="utf-8") as file:
         cool_program_code = file.read()
 
-    parser = PyCoolParser()
-    parser.build(debug=True)
+    parser = make_parser()
     parse_result = parser.parse(cool_program_code)
     print(parse_result)
 
