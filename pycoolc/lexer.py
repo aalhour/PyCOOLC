@@ -151,7 +151,7 @@ class PyCoolLexer(object):
         return iter_token_stream
             
 
-    # ################### ITERATOR PROTOCOL ############################################
+    # ################### ITERATOR PROTOCOL ######################################################
 
     def __iter__(self):
         return self
@@ -165,7 +165,7 @@ class PyCoolLexer(object):
     def next(self):
         return self.__next__()
 
-    # ################### READONLY PROPERTIES: TOKENS AND RESERVED KEYWORDS ############
+    # ################### READONLY PROPERTIES: TOKENS, STATES AND RESERVED KEYWORDS ############
 
     @property
     def tokens_collection(self):
@@ -187,10 +187,7 @@ class PyCoolLexer(object):
             "PLUS", "MINUS", "TIMES", "DIVIDE", "EQUALS", "LTHAN", "LTEQ", "ASSIGN", "INT_COMP", "NOT",
 
             # Special Operators
-            "ARROW",
-
-            # Discarded
-            "COMMENT"
+            "ARROW"
         )
 
     @property
@@ -214,7 +211,6 @@ class PyCoolLexer(object):
             "loop": "LOOP",
             "new": "NEW",
             "of": "OF",
-            "override": "OVERRIDE",
             "pool": "POOL",
             "self": "SELF",
             "then": "THEN",
@@ -252,6 +248,7 @@ class PyCoolLexer(object):
             "native": "NATIVE",
             "null": "NULL",
             "object": "OBJECT",
+            "override": "OVERRIDE",
             "package": "PACKAGE",
             "private": "PRIVATE",
             "protected": "PROTECTED",
@@ -298,12 +295,12 @@ class PyCoolLexer(object):
 
     # COMPLEX TOKENS LEXING RULES.
     integer_rule = r'\d+'
-    boolean_rule = r'true|false'
+    boolean_rule = r'(true|false)'
     string_rule = r'\"(\\.|[^"])*\"'
-    type_rule = r'SELF_TYPE|Object|IO|Main|String|Int|Bool|[A-Z][a-zA-Z_0-9]*'
+    type_rule = r'[A-Z][a-zA-Z_0-9]*'
     identifier_rule = r'[a-z_][a-zA-Z_0-9]*'
     newline_rule = r'\n+'
-    whitespace_rule = r'[\ \t\s]+'
+    whitespace_rule = r'[\ \t\s\f\v\r]+'
     comments_rule = r'(\(\*(.|\n)*?\*\))|(\-\-.*)'
 
     @TOKEN(boolean_rule)
@@ -382,6 +379,21 @@ class PyCoolLexer(object):
     # ################# END OF LEXICAL ANALYSIS RULES DECLARATION ######################
 
 
+# ----------------------------------------------------------------------
+#                Lexer as a Standalone Python Program
+#                Usage: ./lexer.py cool_program.cl
+# ----------------------------------------------------------------------
+
+def make_lexer():
+    """
+    Utility function.
+    :return: PyCoolLexer object.
+    """
+    a_lexer = PyCoolLexer()
+    a_lexer.build()
+    return a_lexer
+
+
 if __name__ == "__main__":
     if len(sys.argv) != 2:
         print("Usage: ./lexer.py program.cl")
@@ -395,7 +407,7 @@ if __name__ == "__main__":
     with open(input_file, encoding="utf-8") as file:
         cool_program_code = file.read()
 
-    lexer = PyCoolLexer()
+    lexer = make_lexer()
     lexer.input(cool_program_code)
     for token in lexer:
         print(token)
