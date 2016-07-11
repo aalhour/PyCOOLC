@@ -44,6 +44,16 @@ class Expr(BaseNode):
         super(Expr, self).__init__()
 
 
+class UnaryOperation(Expr):
+    def __init__(self):
+        super(UnaryOperation, self).__init__()
+
+
+class BinaryOperation(Expr):
+    def __init__(self):
+        super(BinaryOperation, self).__init__()
+
+
 # ############################## PROGRAM, TYPE AND INHERITANCE ##############################
 
 
@@ -57,14 +67,14 @@ class Program(BaseNode):
 
 
 class Type(BaseNode):
-    def __init__(self, name, inherits, features):
+    def __init__(self, name, base_type, features):
         super(Type, self).__init__()
         self.name = name
-        self.inherits = inherits
+        self.base_type = base_type
         self.features = features
 
     def to_tuple(self):
-        return tuple([self._clsname, self.name, self.inherits, self.features])
+        return tuple([self._clsname, self.name, self.base_type, self.features])
 
 
 class Inheritance(BaseNode):
@@ -112,31 +122,40 @@ class FormalParameter(ClassFeature):
 # ############################## CONSTANTS ##############################
 
 
-class IntegerContant(Constant):
+class Integer(Constant):
     def __init__(self, value):
-        super(IntegerContant, self).__init__()
+        super(Integer, self).__init__()
         self.value = int(value)
 
     def to_tuple(self):
         return tuple([self._clsname, self.value])
 
 
-class StringConstant(Constant):
+class String(Constant):
     def __init__(self, value):
-        super(StringConstant, self).__init__()
+        super(String, self).__init__()
         self.value = str(value)
 
     def to_tuple(self):
         return tuple([self._clsname, self.value])
 
 
-class BooleanConstant(Constant):
+class Boolean(Constant):
     def __init__(self, value):
-        super(BooleanConstant, self).__init__()
+        super(Boolean, self).__init__()
         self.value = value is True
 
     def to_tuple(self):
         return tuple([self._clsname, self.value])
+
+
+class Object(Constant):
+    def __init__(self, identifier):
+        super(Object, self).__init__()
+        self.identifier = identifier
+
+    def to_tuple(self):
+        return tuple([self._clsname, self.identifier])
 
 
 # ############################## FORMAL AND ACTION ##############################
@@ -195,13 +214,13 @@ class IsVoidExpr(Expr):
 
 
 class AssignmentExpr(Expr):
-    def __init__(self, identifier, expression):
+    def __init__(self, instance, expression):
         super(AssignmentExpr, self).__init__()
-        self.identifier = identifier
+        self.instance = instance
         self.expression = expression
 
     def to_tuple(self):
-        return tuple([self._clsname, self.identifier, self.expression])
+        return tuple([self._clsname, self.instance, self.expression])
 
 
 class BlockExpr(Expr):
@@ -214,38 +233,40 @@ class BlockExpr(Expr):
 
 
 class DynamicDispatchExpr(Expr):
-    def __init__(self, identifier_expr, method_id, arguments):
+    def __init__(self, instance, method, arguments):
         super(DynamicDispatchExpr, self).__init__()
-        self.identifier_expr = identifier_expr
-        self.method_id = method_id
+        self.instance = instance
+        self.method = method
         self.arguments = arguments if arguments is not None else tuple()
 
     def to_tuple(self):
-        return tuple([self._clsname, self.identifier_expr, self.method_id, self.arguments])
+        return tuple([self._clsname, self.instance, self.method, self.arguments])
 
 
 class StaticDispatchExpr(Expr):
-    def __init__(self, identifier_expr, dispatch_type, method_id, arguments):
+    def __init__(self, instance, dispatch_type, method, arguments):
         super(StaticDispatchExpr, self).__init__()
-        self.identifier_expr = identifier_expr
+        self.instance = instance
         self.dispatch_type = dispatch_type
-        self.method_id = method_id
+        self.method = method
         self.arguments = arguments if arguments is not None else tuple()
 
     def to_tuple(self):
         return tuple([
-            self._clsname, self.identifier_expr, self.dispatch_type, self.method_id, self.arguments
+            self._clsname, self.instance, self.dispatch_type, self.method, self.arguments
         ])
 
 
 class LetExpr(Expr):
-    def __init__(self, formals, expression):
+    def __init__(self, instance, let_type, assignment_expr, body):
         super(LetExpr, self).__init__()
-        self.formals = formals
-        self.expr = expression
+        self.instance = instance
+        self.let_type = let_type
+        self.assignment_expr = assignment_expr
+        self.body = body
 
     def to_tuple(self):
-        return tuple([self._clsname, self.formals, self.expr])
+        return tuple([self._clsname, self.instance, self.let_type, self.assignment_expr, self.body])
 
 
 class ConditionalExpr(Expr):
@@ -279,25 +300,104 @@ class CaseExpr(Expr):
         return tuple([self._clsname, self.expr, self.actions])
 
 
-class UnaryOperation(Expr):
-    def __init__(self, operation, expression):
-        super(UnaryOperation, self).__init__()
-        self.operation = operation
-        self.expr = expression
+# ############################## OPERATIONS ##################################
+
+
+class IntegerComplement(UnaryOperation):
+    def __init__(self, integer_expr):
+        super(IntegerComplement, self).__init__()
+        self.symbol = "~"
+        self.integer_expr = integer_expr
 
     def to_tuple(self):
-        return tuple([self._clsname, self.operation, self.expr])
+        return tuple([self._clsname, self.integer_expr])
 
 
-class BinaryOperation(Expr):
-    def __init__(self, left_expression, operation, right_expression):
-        super(BinaryOperation, self).__init__()
-        self.left_expr = left_expression
-        self.right_expr = right_expression
-        self.operation = operation
+class BooleanComplement(UnaryOperation):
+    def __init__(self, boolean_expr):
+        super(BooleanComplement, self).__init__()
+        self.symbol = "!"
+        self.boolean_expr = boolean_expr
 
     def to_tuple(self):
-        return tuple([self._clsname, self.left_expr, self.operation, self.right_expr])
+        return tuple([self._clsname, self.boolean_expr])
+
+
+class Addition(BinaryOperation):
+    def __init__(self, integer_expr_1, integer_expr_2):
+        super(Addition, self).__init__()
+        self.symbol = "+"
+        self.integer_expr_1 = integer_expr_1
+        self.integer_expr_2 = integer_expr_2
+
+    def to_tuple(self):
+        return tuple([self._clsname, self.integer_expr_1, self.integer_expr_2])
+
+
+class Subtraction(BinaryOperation):
+    def __init__(self, integer_expr_1, integer_expr_2):
+        super(Subtraction, self).__init__()
+        self.symbol = "-"
+        self.integer_expr_1 = integer_expr_1
+        self.integer_expr_2 = integer_expr_2
+
+    def to_tuple(self):
+        return tuple([self._clsname, self.integer_expr_1, self.integer_expr_2])
+
+
+class Multiplication(BinaryOperation):
+    def __init__(self, integer_expr_1, integer_expr_2):
+        super(Multiplication, self).__init__()
+        self.symbol = "*"
+        self.integer_expr_1 = integer_expr_1
+        self.integer_expr_2 = integer_expr_2
+
+    def to_tuple(self):
+        return tuple([self._clsname, self.integer_expr_1, self.integer_expr_2])
+
+
+class Division(BinaryOperation):
+    def __init__(self, integer_expr_1, integer_expr_2):
+        super(Division, self).__init__()
+        self.symbol = "/"
+        self.integer_expr_1 = integer_expr_1
+        self.integer_expr_2 = integer_expr_2
+
+    def to_tuple(self):
+        return tuple([self._clsname, self.integer_expr_1, self.integer_expr_2])
+
+
+class Equal(BinaryOperation):
+    def __init__(self, integer_expr_1, integer_expr_2):
+        super(Equal, self).__init__()
+        self.symbol = "="
+        self.integer_expr_1 = integer_expr_1
+        self.integer_expr_2 = integer_expr_2
+
+    def to_tuple(self):
+        return tuple([self._clsname, self.integer_expr_1, self.integer_expr_2])
+
+
+class LessThan(BinaryOperation):
+    def __init__(self, integer_expr_1, integer_expr_2):
+        super(LessThan, self).__init__()
+        self.symbol = "<"
+        self.integer_expr_1 = integer_expr_1
+        self.integer_expr_2 = integer_expr_2
+
+    def to_tuple(self):
+        return tuple([self._clsname, self.integer_expr_1, self.integer_expr_2])
+
+
+class LessThanOrEqual(BinaryOperation):
+    def __init__(self, integer_expr_1, integer_expr_2):
+        super(LessThanOrEqual, self).__init__()
+        self.symbol = "<="
+        self.integer_expr_1 = integer_expr_1
+        self.integer_expr_2 = integer_expr_2
+
+    def to_tuple(self):
+        return tuple([self._clsname, self.integer_expr_1, self.integer_expr_2])
 
 
 # ############################## HELPER METHODS ##############################

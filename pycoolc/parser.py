@@ -60,51 +60,35 @@ class PyCoolParser(object):
 
     # ################### START OF FORMAL GRAMMAR RULES DECLARATION ####################
 
-    @property
-    def precedence(self):
-        return (
-            ('right', 'ASSIGN'),
-            ('right', 'NOT'),
-            ('nonassoc', 'LTEQ', 'LTHAN', 'EQUALS'),
-            ('left', 'PLUS', 'MINUS'),
-            ('left', 'TIMES', 'DIVIDE'),
-            ('right', 'ISVOID'),
-            ('right', 'INT_COMP'),
-            ('left', 'AT'),
-            ('left', 'DOT')
-        )
-
     def p_program(self, parse):
         """
-        program : classes
+        program : class_seq
         """
         parse[0] = Program(classes=parse[1])
 
-    def p_classes(self, parse):
+    def p_class_seq_many(self, parse):
         """
-        classes : classes class
-                | class
+        class_seq : class_seq class SEMICOLON
         """
-        if len(parse) == 2:
-            parse[0] = (parse[1],)
-        else:
-            parse[0] = parse[1] + (parse[2],)
+        parse[0] = parse[1] + (parse[2],)
+
+    def p_class_seq_single(self, parse):
+        """
+        class_seq : class SEMICOLON
+        """
+        parse[0] = parse[1]
 
     def p_class(self, parse):
         """
-        class : CLASS TYPE inheritance_opt LBRACE features_opt RBRACE SEMICOLON
+        class : CLASS TYPE LBRACE features_seq RBRACE
+        """
+        parse[0] = Type(name=parse[2], base_type="OBJECT_TYPE", features=parse[5])
+
+    def p_class_with_inheritance(self, parse):
+        """
+        class : CLASS TYPE INHERITS some_type LBRACE features_seq RBRACE
         """
         parse[0] = Type(name=parse[2], inherits=parse[3], features=parse[5])
-
-    def p_inheritance_opt(self, parse):
-        """
-        inheritance_opt : INHERITS some_type
-                        | empty
-        """
-        if len(parse) == 2:
-            parse[0] = Inheritance(parent_type="OBJECT_TYPE")
-        else:
-            parse[0] = Inheritance(parent_type=parse[2])
 
     def p_some_type(self, parse):
         """
@@ -119,75 +103,59 @@ class PyCoolParser(object):
         """
         parse[0] = parse[1]
 
-    def p_features_opt(self, parse):
+    def p_features_seq_many(self, parse):
         """
-        features_opt    : features
-                        | empty
+        features_seq    : features_seq feature SEMICOLON
         """
-        if parse.slice[1].type == "empty":
-            parse[0] = tuple()
-        else:
-            parse[0] = parse[1]
+        parse[0] = parse[1] + (parse[2],)
 
-    def p_features(self, parse):
+    def p_features_seq_single(self, parse):
         """
-        features : features feature
-                 | feature
+        features_seq    : feature SEMICOLON
         """
-        if len(parse) == 2:
-            parse[0] = (parse[1],)
-        else:
-            parse[0] = parse[1] + (parse[2],)
+        parse[0] = (parse[1],)
 
-    def p_feature(self, parse):
+    def p_features_seq_empty(self, parse):
         """
-        feature : method_def
-                | attribute_def
+        features_seq    : empty
         """
-        parse[0] = parse[1]
+        parse[0] = tuple()
 
-    def p_method_def(self, parse):
+    def p_feature_method_with_formal_params(self, parse):
         """
-        method_def : ID LPAREN formal_params_seq_opt RPAREN COLON some_type LBRACE expr RBRACE SEMICOLON
+        feature :   ID LPAREN formal_params_seq RPAREN COLON some_type LBRACE expr RBRACE
         """
         parse[0] = ClassMethod(identifier=parse[1], formal_params=parse[3], return_type=parse[6], method_body=parse[8])
 
-    def p_attribute_def(self, parse):
+    def p_feature_method(self, parse):
         """
-        attribute_def : ID COLON some_type assignment_opt SEMICOLON
+        feature :   ID LPAREN RPAREN COLON some_type LBRACE expr RBRACE
         """
-        assign_expr = None if parse.slice[4].type == "empty" else parse[4]
-        parse[0] = ClassAttribute(identifier=parse[1], attribute_type=parse[3], assignment_expr=assign_expr)
+        parse[0] = ClassMethod(identifier=parse[1], formal_params=tuple(), return_type=parse[5], method_body=parse[7])
 
-    def p_assignment_opt(self, parse):
+    def p_feature_attr_with_assignment(self, parse):
         """
-        assignment_opt  : ASSIGN expr
-                        | empty
+        feature : ID COLON some_type ASSIGN expr
         """
-        if len(parse) == 2:
-            parse[0] = None
-        else:
-            parse[0] = parse[2]
+        parse[0] = ClassAttribute(identifier=parse[1], attribute_type=parse[3], assignment_expr=parse[5])
+
+    def p_feature_attr(self, parse):
+        """
+        feature : ID COLON some_type
+        """
+        parse[0] = ClassAttribute(identifier=parse[1], attribute_type=parse[3], assignment_expr=None)
     
-    def p_formal_params_seq_opt(self, parse):
+    def p_formal_params_seq_many(self, parse):
         """
-        formal_params_seq_opt   : formal_params_seq
-                                | empty
+        formal_params_seq   : formal_params_seq COMMA formal_param
         """
-        if parse.slice[1].type == "empty":
-            parse[0] = tuple()
-        else:
-            parse[0] = parse[1]
+        parse[0] = parse[1] + (parse[2],)
 
-    def p_formal_params_seq(self, parse):
+    def p_formal_params_seq_single(self, parse):
         """
-        formal_params_seq   : formal_params_seq formal_param
-                            | formal_param
+        formal_params_seq   : formal_param
         """
-        if len(parse) == 2:
-            parse[0] = (parse[1],)
-        else:
-            parse[0] = parse[1] + (parse[2],)
+        parse[0] = (parse[1],)
 
     def p_formal_param(self, parse):
         """
@@ -195,200 +163,232 @@ class PyCoolParser(object):
         """
         parse[0] = FormalParameter(identifier=parse[1], param_type=parse[3])
 
-    def p_formal(self, parse):
+    def p_expr_object_identifier(self, parse):
         """
-        formal : ID COLON some_type assignment_opt
+        expr : ID
         """
-        assign_expr = None if parse.slice[4].type == "empty" else parse[4]
-        parse[0] = Formal(identifier=parse[1], formal_type=parse[3], assignment_expr=assign_expr)
+        parse[0] = Object(parse[1])
 
-    def p_expressions_seq(self, parse):
+    def p_expr_integer(self, parse):
         """
-        expressions_seq : expressions_seq expr SEMICOLON
-                        | expr SEMICOLON
+        expr    : INTEGER
         """
-        if len(parse) == 3:
-            parse[0] = (parse[1],)
-        else:
-            parse[0] = parse[1] + (parse[2],)
+        parse[0] = Integer(parse[1])
 
-    def p_arguments_seq_opt(self, parse):
+    def p_expr_boolean(self, parse):
         """
-        arguments_seq_opt   : arguments_seq
-                            | empty
+        expr    : BOOLEAN
         """
-        if parse.slice[1].type == "empty":
-            parse[0] = tuple()
-        else:
-            parse[0] = (parse[1],)
+        parse[0] = Boolean(parse[1])
 
-    def p_arguments_seq(self, parse):
+    def p_expr_string(self, parse):
         """
-        arguments_seq   : arguments_seq COMMA expr
-                        | expr
+        expr    : STRING
         """
-        if len(parse) == 2:
-            parse[0] = (parse[1],)
-        else:
-            parse[0] = (parse[1],) + parse[3]
+        parse[0] = String(parse[1])
 
-    def p_expr(self, parse):
+    def p_expr_block(self, parse):
         """
-        expr    :   ID ASSIGN expr
-                |   dynamic_dispatch_expr
-                |   static_dispatch_expr
-                |   ID LPAREN arguments_seq_opt RPAREN
-                |   if_then_fi
-                |   if_then_else_fi
-                |   while_loop_pool
-                |   LBRACE expressions_seq RBRACE
-                |   let
-                |   case_esac
-                |   NEW some_type
-                |   ISVOID ID
-                |   math_arith_operation
-                |   int_comp_operation
-                |   math_comp_operation
-                |   bool_neg_operation
-                |   LPAREN expr RPAREN
-                |   ID
-                |   INTEGER
-                |   STRING
-                |   BOOLEAN
+        expr     : LBRACE block_expr_seq RBRACE
         """
-        if len(parse) == 2:
-            ptype = parse.slice[1].type
-            if ptype in ["ID", "STRING", "INTEGER", "BOOLEAN"]:
-                if ptype == "ID":
-                    parse[0] = IdentifierExpr(identifier=parse.slice[1].value)
-                elif ptype == "STRING":
-                    parse[0] = StringConstant(value=parse.slice[1].value)
-                elif ptype == "INTEGER":
-                    parse[0] = IntegerContant(value=parse.slice[1].value)
-                elif ptype == "BOOLEAN":
-                    parse[0] = BooleanConstant(value=parse.slice[1].value)
-            else:
-                parse[0] = parse[1]
-        # "new Type" or "isvoid(ID)"
-        elif len(parse) == 3:
-            if parse.slice[1].type == "NEW":
-                parse[0] = NewTypeExpr(new_type=parse[2])
-            elif parse.slice[1].type == "ISVOID":
-                parse[0] = IsVoidExpr(expression=parse[2])
-        # Parenthesized Expr, Block Expr or Assignment
-        elif len(parse) == 4:
-            # ( expr )
-            if parse.slice[1].type == "LPAREN" and parse.slice[3].type == "RPAREN":
-                parse[0] = parse[2]
-            # { expressions }
-            elif parse.slice[1].type == "LBRACE" and parse.slice[3].type == "RBRACE":
-                parse[0] = BlockExpr(expressions=parse[2])
-            # ID <- expr
-            else:
-                parse[0] = AssignmentExpr(identifier=parse[1], expression=parse[3])
-        # ID ( arguments_seq_opt )
-        elif len(parse) == 5:
-            parse[0] = DynamicDispatchExpr(identifier_expr=IdentifierExpr("self"), method_id=parse[1], arguments=parse[3])
+        parse[0] = BlockExpr(parse[2])
 
-    def p_let(self, parse):
+    def p_block_expr_seq_many(self, parse):
         """
-        let : LET let_formals_seq IN expr
+        block_expr_seq    : block_expr_seq expr SEMICOLON
         """
-        parse[0] = LetExpr(formals=parse[2], expression=parse[4])
+        parse[0] = parse[1] + (parse[2],)
 
-    def p_let_formals_seq(self, parse):
+    def p_block_expr_seq_single(self, parse):
         """
-        let_formals_seq : let_formals_seq COMMA formal
-                        | formal
+        block_expr_seq    : expr SEMICOLON
         """
-        if len(parse) == 2:
-            parse[0] = (parse[1],)
-        elif len(parse) == 4:
-            parse[0] = (parse[1],) + parse[3]
+        parse[0] = (parse[1],)
 
-    def p_if_then_fi(self, parse):
+    def p_expr_assignment(self, parse):
         """
-        if_then_fi : IF expr THEN expr FI
+        expr    : ID ASSIGN expr
         """
-        parse[0] = ConditionalExpr(predicate=parse[2], then_expression=parse[4], else_expression=None)
+        parse[0] = AssignmentExpr(instance=Object(parse[1]), expression=parse[3])
 
-    def p_if_then_else_fi(self, parse):
+    def p_expr_dynamic_dispatch(self, parse):
         """
-        if_then_else_fi : IF expr THEN expr ELSE expr FI
+        expr : expr DOT ID LPAREN arguments_seq RPAREN
+        """
+        parse[0] = DynamicDispatchExpr(instance=parse[1], method=parse[3], arguments=parse[5])
+
+    def p_arguments_seq_many(self, parse):
+        """
+        arguments_seq : arguments_seq COMMA expr
+        """
+        parse[0] = parse[1] + (parse[3],)
+
+    def p_arguments_seq_single(self, parse):
+        """
+        arguments_seq : expr
+        """
+        parse[0] = (parse[1],)
+
+    def p_arguments_seq_empty(self, parse):
+        """
+        arguments_seq : empty
+        """
+        parse[0] = tuple()
+
+    def p_expr_static_dispatch(self, parse):
+        """
+        expr : expr AT some_type DOT ID LPAREN arguments_seq RPAREN
+        """
+        p[0] = StaticDispatchExpr(instance=parse[1], dispatch_type=parse[3], method=parse[5], arguments=parse[7])
+
+    def p_expr_self_dispatch(self, parse):
+        """
+        expr : ID LPAREN arguments_seq RPAREN
+        """
+        parse[0] = DynamicDispatchExpr(instance="self", method=parse[1], arguments=parse[3])
+
+    def p_expr_math_operations(self, parse):
+        """
+        expr    : expr PLUS expr
+                | expr MINUS expr
+                | expr MULTIPLY expr
+                | expr DIVIDE expr
+        """
+        if parse[2] == '+':
+            parse[0] = Addition(parse[1], parse[3])
+        elif parse[2] == '-':
+            parse[0] = Subtraction(parse[1], parse[3])
+        elif parse[2] == '*':
+            parse[0] = Multiplication(parse[1], parse[3])
+        elif parse[2] == '/':
+            parse[0] = Division(parse[1], parse[3])
+
+    def p_expr_math_comparisons(self, parse):
+        """
+        expr    : expr LT expr
+                | expr LTEQ expr
+                | expr EQ expr
+        """
+        if parse[2] == '<':
+            parse[0] = LessThan(parse[1], parse[3])
+        elif parse[2] == '<=':
+            parse[0] = LessThanOrEqual(parse[1], parse[3])
+        elif parse[2] == '=':
+            parse[0] = Equal(parse[1], parse[3])
+
+    def p_expr_parenthesized(self, parse):
+        """
+        expr    : LPAREN expr RPAREN
+        """
+        parse[0] = parse[2]
+
+    def p_expr_if_then_else(self, parse):
+        """
+        expr    : IF expr THEN expr ELSE expr FI
         """
         parse[0] = ConditionalExpr(predicate=parse[2], then_expression=parse[4], else_expression=parse[6])
 
-    def p_while_loop_pool(self, parse):
+    def p_expr_while_loop(self, parse):
         """
-        while_loop_pool : WHILE expr LOOP expr POOL
+        expr    : WHILE expr LOOP expr POOL
         """
         parse[0] = LoopExpr(predicate=parse[2], body=parse[4])
 
-    def p_case_esac(self, parse):
+    # ############### LET EXPRESSION ###############
+
+    def p_expr_let(self, parse):
         """
-        case_esac : CASE expr OF actions ESAC
+        expr    : LET ID COLON some_type IN expr
+        expr    : LET ID COLON some_type COMMA inner_lets
+        """
+        parse[0] = LetExpr(parse[2], parse[4], None, parse[6])
+
+    def p_expr_let_with_assignment(self, parse):
+        """
+        expr    : LET ID COLON some_type ASSIGN expr IN expr
+        expr    : LET ID COLON some_type ASSIGN expr COMMA inner_lets
+        """
+        parse[0] = LetExpr(parse[2], parse[4], parse[6], parse[8])
+
+    def p_expr_let_with_error(self, parse):
+        """
+        expr    : LET error COMMA ID COLON some_type IN expr
+        expr    : LET error COMMA ID COLON some_type COMMA inner_lets
+        """
+        parse[0] = LetExpr(parse[4], parse[6], None, parse[8])
+
+    def p_expr_let_with_assignemnt_and_error(self, parse):
+        """
+        expr    : LET error COMMA ID COLON some_type ASSIGN expr IN expr
+        expr    : LET error COMMA ID COLON some_type ASSIGN expr COMMA inner_lets
+        """
+        parse[0] = LetExpr(parse[4], parse[6], parse[8], parse[10])
+
+    def p_inner_lets_simple(self, parse):
+        """
+        inner_lets  : ID COLON some_type IN expr
+        inner_lets  : ID COLON some_type COMMA inner_lets
+        """
+        parse[0] = LetExpr(parse[1], parse[3], None, parse[5])
+
+    def p_inner_lets_with_assignments(self, parse):
+        """
+        inner_lets  : ID COLON some_type ASSIGN expr IN expr
+        inner_lets  : ID COLON some_type ASSIGN expr COMMA inner_lets
+        """
+        parse[0] = LetExpr(parse[1], parse[3], parse[5], parse[7])
+
+    # ############### CASE EXPRESSION ###############
+
+    def p_expr_case(self, parse):
+        """
+        expr    : CASE expr OF actions_seq ESAC
         """
         parse[0] = CaseExpr(expression=parse[2], actions=parse[4])
 
-    def p_actions(self, parse):
+    def p_action_seq_many(self, parse):
         """
-        actions : actions action
-                | action
+        actions_seq : actions_seq action
         """
-        if len(parse) == 2:
-            parse[0] = (parse[1],)
-        else:
-            parse[0] = parse[1] + (parse[2],)
+        parse[0] = parse[1] + (parse[2],)
 
-    def p_action(self, parse):
+    def p_action_seq_one(self, parse):
         """
-        action : ID COLON some_type ARROW expr SEMICOLON
+        actions_seq : action
+        """
+        parse[0] = (parse[1],)
+
+    def p_action_expr(self, parse):
+        """
+        action  : ID COLON some_type ARROW expr SEMICOLON
         """
         parse[0] = Action(identifier=parse[1], action_type=parse[3], body=parse[5])
 
-    def p_math_arith_operation(self, parse):
-        """
-        math_arith_operation    :   expr PLUS expr
-                                |   expr MINUS expr
-                                |   expr TIMES expr
-                                |   expr DIVIDE expr
-        """
-        parse[0] = BinaryOperation(left_expression=parse[1], right_expression=parse[3],
-                                   operation=get_operation(parse.slice[2].type))
+    #  ############### NEW, ISVOID, INT_COMP AND NOT EXPRESSIONS ###############
 
-    def p_math_comp_operation(self, parse):
+    def p_expr_new(self, parse):
         """
-        math_comp_operation : expr LTHAN expr
-                            | expr LTEQ expr
-                            | expr EQUALS expr
+        expr    : NEW some_type
         """
-        parse[0] = BinaryOperation(left_expression=parse[1], right_expression=parse[3],
-                                   operation=get_operation(parse.slice[2].type))
+        parse[0] = NewTypeExpr(new_type=parse[2])
 
-    def p_int_comp_operation(self, parse):
+    def p_expr_isvoid(self, parse):
         """
-        int_comp_operation  : INT_COMP expr
+        expr    : ISVOID expr
         """
-        parse[0] = UnaryOperation(operation=get_operation(parse.slice[1].type), expression=parse[2])
+        parse[0] = IsVoidExpr(expression=parse[2])
 
-    def p_bool_neg_operation(self, parse):
+    def p_expr_integer_complement(self, parse):
         """
-        bool_neg_operation  : NOT expr
+        expr    : INT_COMP expr
         """
-        parse[0] = UnaryOperation(operation=get_operation(parse.slice[1].type), expression=parse[2])
+        parse[0] = IntegerComplement(integer_expr=parse[2])
 
-    def p_dynamic_dispatch_expr(self, parse):
+    def p_expr_boolean_complement(self, parse):
         """
-        dynamic_dispatch_expr : expr DOT ID LPAREN arguments_seq_opt RPAREN
+        expr    : NOT expr
         """
-        parse[0] = DynamicDispatchExpr(identifier_expr=parse[1], method_id=parse[3], arguments=parse[5])
-
-    def p_static_dispatch_expr(self, parse):
-        """
-        static_dispatch_expr : expr AT some_type DOT ID LPAREN arguments_seq_opt RPAREN
-        """
-        parse[0] = StaticDispatchExpr(identifier_expr=parse[1], dispatch_type=parse[3], method_id=parse[5],
-                                      arguments=parse[7])
+        parse[0] = BooleanComplement(boolean_expr=parse[2])
 
     # The Empty Production Rule
     def p_empty(self, parse):
@@ -400,7 +400,20 @@ class PyCoolParser(object):
     # yaac error rule for syntax errors
     def p_error(self, parse):
         print("Syntax error in input program at token: {!r}".format(parse))
-    
+
+    @property
+    def precedence(self):
+        return (
+            ('right', 'ASSIGN'),
+            ('left', 'NOT'),
+            ('nonassoc', 'LTEQ', 'LT', 'EQ'),
+            ('left', 'PLUS', 'MINUS'),
+            ('left', 'MULTIPLY', 'DIVIDE'),
+            ('left', 'ISVOID'),
+            ('left', 'INT_COMP'),
+            ('left', 'AT'),
+            ('left', 'DOT')
+        )
     # ################### END OF FORMAL GRAMMAR RULES DECLARATION ######################
 
 
