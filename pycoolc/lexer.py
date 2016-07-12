@@ -187,7 +187,10 @@ class PyCoolLexer(object):
             "PLUS", "MINUS", "MULTIPLY", "DIVIDE", "EQ", "LT", "LTEQ", "ASSIGN", "INT_COMP", "NOT",
 
             # Special Operators
-            "ARROW"
+            "ARROW",
+
+            # IGNORED
+            "SINGLE_LINE_COMMENT"
         )
 
     @property
@@ -214,16 +217,7 @@ class PyCoolLexer(object):
             "pool": "POOL",
             "self": "SELF",
             "then": "THEN",
-            "while": "WHILE",
-
-            # BASIC TYPES - alphabetical order
-            "Bool": "BOOL_TYPE",
-            "Int": "INT_TYPE",
-            "IO": "IO_TYPE",
-            "Main": "MAIN_TYPE",
-            "Object": "OBJECT_TYPE",
-            "String": "STRING_TYPE",
-            "SELF_TYPE": "SELF_TYPE"
+            "while": "WHILE"
         }
 
     @property
@@ -267,6 +261,19 @@ class PyCoolLexer(object):
             "yield": "YIELD"
         }
 
+    @property
+    def builtin_types(self):
+        return {
+            # BASIC TYPES - alphabetical order
+            "Bool": "BOOL_TYPE",
+            "Int": "INT_TYPE",
+            "IO": "IO_TYPE",
+            "Main": "MAIN_TYPE",
+            "Object": "OBJECT_TYPE",
+            "String": "STRING_TYPE",
+            "SELF_TYPE": "SELF_TYPE"
+        }
+
     # ################################# PRIVATE ########################################
 
     # ################# START OF LEXICAL ANALYSIS RULES DECLARATION ####################
@@ -279,7 +286,11 @@ class PyCoolLexer(object):
             ("COMMENT", "exclusive")
         )
 
-    # SIMPLE TOKENS RULES
+    # Ignore rule for single line comments
+    t_ignore_SINGLE_LINE_COMMENT = r"\-\-[^\n]*"
+
+    ###
+    # SIMPLE TOKENS
     t_LPAREN = r'\('        # (
     t_RPAREN = r'\)'        # )
     t_LBRACE = r'\{'        # {
@@ -301,16 +312,14 @@ class PyCoolLexer(object):
     t_NOT = r'not'          # not
     t_ARROW = r'\=\>'       # =>
 
-    # COMPLEX TOKENS LEXING RULES.
-    integer_rule = r'\d+'
-    boolean_rule = r'(true|false)'
-    type_rule = r'[A-Z][a-zA-Z_0-9]*'
-    identifier_rule = r'[a-z_][a-zA-Z_0-9]*'
-    newline_rule = r'\n+'
-    whitespace_rule = r'[\ \t\s\f\v\r]+'
-    comments_rule = r'(\(\*(.|\n)*?\*\))|(\-\-.*)'
+    ###
+    # COMPLEX TOKENS
+    #
+    # @TOKEN(r"\-\-[^\n]*")
+    # def t_SINGLE_LINE_COMMENT(self, token):
+    #    pass
 
-    @TOKEN(boolean_rule)
+    @TOKEN(r"(true|false)")
     def t_BOOLEAN(self, token):
         """
         The Bool Primitive Type Token Rule.
@@ -318,7 +327,7 @@ class PyCoolLexer(object):
         token.value = True if token.value == "true" else False
         return token
 
-    @TOKEN(integer_rule)
+    @TOKEN(r"\d+")
     def t_INTEGER(self, token):
         """
         The Integer Primitive Type Token Rule.
@@ -326,7 +335,7 @@ class PyCoolLexer(object):
         token.value = int(token.value)
         return token
 
-    @TOKEN(type_rule)
+    @TOKEN(r"[A-Z][a-zA-Z_0-9]*")
     def t_TYPE(self, token):
         """
         The Type Token Rule.
@@ -334,7 +343,7 @@ class PyCoolLexer(object):
         token.type = self.basic_reserved.get(token.value, 'TYPE')
         return token
 
-    @TOKEN(identifier_rule)
+    @TOKEN(r"[a-z_][a-zA-Z_0-9]*")
     def t_ID(self, token):
         """
         The Identifier Token Rule.
@@ -425,7 +434,14 @@ class PyCoolLexer(object):
     def t_COMMENT_error(self, t):
         t.lexer.skip(1)
 
-    @TOKEN(whitespace_rule)
+    @TOKEN(r"\n+")
+    def t_newline(self, token):
+        """
+        The Newline Token Rule.
+        """
+        token.lexer.lineno += len(token.value)
+
+    @TOKEN(r"[\ \t\s\f\v\r]+")
     def t_WHITESPACE(self, token):
         """
         The Whitespace Token Rule.
@@ -435,13 +451,6 @@ class PyCoolLexer(object):
 
     # # Empty Ignored Characters Rule
     t_ignore = r''
-
-    @TOKEN(newline_rule)
-    def t_newline(self, token):
-        """
-        The Newline Token Rule.
-        """
-        token.lexer.lineno += len(token.value)
 
     def t_error(self, token):
         """

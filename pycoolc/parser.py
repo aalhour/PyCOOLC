@@ -28,8 +28,8 @@ class PyCoolParser(object):
         self.lexer = PyCoolLexer()
 
         # Initialize self.parser and self.tokens to None
-        self.parser = None
         self.tokens = None
+        self.parser = None
 
     def build(self, **kwargs):
         """
@@ -58,6 +58,22 @@ class PyCoolParser(object):
 
     # ################################# PRIVATE ########################################
 
+    # ################################ PRECEDENCE RULES ################################
+
+    @property
+    def precedence(self):
+        return (
+            ('right', 'ASSIGN'),
+            ('left', 'NOT'),
+            ('nonassoc', 'LTEQ', 'LT', 'EQ'),
+            ('left', 'PLUS', 'MINUS'),
+            ('left', 'MULTIPLY', 'DIVIDE'),
+            ('left', 'ISVOID'),
+            ('left', 'INT_COMP'),
+            ('left', 'AT'),
+            ('left', 'DOT')
+        )
+
     # ################### START OF FORMAL GRAMMAR RULES DECLARATION ####################
 
     def p_program(self, parse):
@@ -66,102 +82,87 @@ class PyCoolParser(object):
         """
         parse[0] = Program(classes=parse[1])
 
-    def p_class_seq_many(self, parse):
+    def p_class_seq(self, parse):
         """
-        class_seq : class_seq class SEMICOLON
+        class_seq   : class_seq class SEMICOLON
+                    | class SEMICOLON
         """
-        parse[0] = parse[1] + (parse[2],)
-
-    def p_class_seq_single(self, parse):
-        """
-        class_seq : class SEMICOLON
-        """
-        parse[0] = parse[1]
+        if len(parse) == 3:
+            parse[0] = (parse[1],)
+        else:
+            parse[0] = parse[1] + (parse[2],)
 
     def p_class(self, parse):
         """
-        class : CLASS TYPE LBRACE features_seq RBRACE
+        class : CLASS TYPE LBRACE features_seq_opt RBRACE
         """
-        parse[0] = Type(name=parse[2], base_type="OBJECT_TYPE", features=parse[5])
+        parse[0] = Class(name=parse[2], parent="Object", features=parse[4])
 
-    def p_class_with_inheritance(self, parse):
+    def p_class_inheritance(self, parse):
         """
-        class : CLASS TYPE INHERITS some_type LBRACE features_seq RBRACE
+        class : CLASS TYPE INHERITS TYPE LBRACE features_seq RBRACE
         """
-        parse[0] = Type(name=parse[2], inherits=parse[3], features=parse[5])
+        parse[0] = Class(name=parse[2], parent=parse[4], features=parse[6])
 
-    def p_some_type(self, parse):
+    def p_features_seq_opt(self, parse):
         """
-        some_type   : TYPE
-                    | SELF_TYPE
-                    | OBJECT_TYPE
-                    | MAIN_TYPE
-                    | IO_TYPE
-                    | INT_TYPE
-                    | BOOL_TYPE
-                    | STRING_TYPE
+        features_seq_opt    : features_seq
+                            | empty
         """
-        parse[0] = parse[1]
+        if parse.slice[1].type == "empty":
+            parse[0] = tuple()
+        else:
+            parse[0] = parse[1]
 
-    def p_features_seq_many(self, parse):
+    def p_features_seq(self, parse):
         """
         features_seq    : features_seq feature SEMICOLON
+                        | feature SEMICOLON
         """
-        parse[0] = parse[1] + (parse[2],)
-
-    def p_features_seq_single(self, parse):
-        """
-        features_seq    : feature SEMICOLON
-        """
-        parse[0] = (parse[1],)
-
-    def p_features_seq_empty(self, parse):
-        """
-        features_seq    : empty
-        """
-        parse[0] = tuple()
-
-    def p_feature_method_with_formal_params(self, parse):
-        """
-        feature :   ID LPAREN formal_params_seq RPAREN COLON some_type LBRACE expr RBRACE
-        """
-        parse[0] = ClassMethod(identifier=parse[1], formal_params=parse[3], return_type=parse[6], method_body=parse[8])
+        if len(parse) == 3:
+            parse[0] = (parse[1],)
+        else:
+            parse[0] = parse[1] + (parse[2],)
 
     def p_feature_method(self, parse):
         """
-        feature :   ID LPAREN RPAREN COLON some_type LBRACE expr RBRACE
+        feature :   ID LPAREN RPAREN COLON TYPE LBRACE expr RBRACE
         """
-        parse[0] = ClassMethod(identifier=parse[1], formal_params=tuple(), return_type=parse[5], method_body=parse[7])
+        parse[0] = ClassMethod(name=parse[1], formal_params=tuple(), return_type=parse[5], body=parse[7])
+
+    def p_feature_method_formal_params(self, parse):
+        """
+        feature :   ID LPAREN formal_params_seq RPAREN COLON TYPE LBRACE expr RBRACE
+        """
+        parse[0] = ClassMethod(name=parse[1], formal_params=parse[3], return_type=parse[6], body=parse[8])
 
     def p_feature_attr_with_assignment(self, parse):
         """
-        feature : ID COLON some_type ASSIGN expr
+        feature : ID COLON TYPE ASSIGN expr
         """
-        parse[0] = ClassAttribute(identifier=parse[1], attribute_type=parse[3], assignment_expr=parse[5])
+        parse[0] = ClassAttribute(name=parse[1], attr_type=parse[3], init_expr=parse[5])
 
     def p_feature_attr(self, parse):
         """
-        feature : ID COLON some_type
+        feature : ID COLON TYPE
         """
-        parse[0] = ClassAttribute(identifier=parse[1], attribute_type=parse[3], assignment_expr=None)
-    
-    def p_formal_params_seq_many(self, parse):
+        parse[0] = ClassAttribute(name=parse[1], attr_type=parse[3], init_expr=None)
+
+    def p_formal_params_seq(self, parse):
         """
         formal_params_seq   : formal_params_seq COMMA formal_param
+                            | formal_param
         """
-        parse[0] = parse[1] + (parse[2],)
-
-    def p_formal_params_seq_single(self, parse):
-        """
-        formal_params_seq   : formal_param
-        """
-        parse[0] = (parse[1],)
+        if len(parse) == 2:
+            parse[0] = (parse[1],)
+        else:
+            parse[0] = parse[1] + (parse[3],)
 
     def p_formal_param(self, parse):
         """
-        formal_param : ID COLON some_type
+        formal_param : ID COLON TYPE
         """
-        parse[0] = FormalParameter(identifier=parse[1], param_type=parse[3])
+        parse[0] = FormalParameter(name=parse[1], param_type=parse[3])
 
     def p_expr_object_identifier(self, parse):
         """
@@ -187,35 +188,51 @@ class PyCoolParser(object):
         """
         parse[0] = String(parse[1])
 
+    def p_expr_self(self, parse):
+        """
+        expr    : SELF
+        """
+        parse[0] = Self()
+
     def p_expr_block(self, parse):
         """
         expr     : LBRACE block_expr_seq RBRACE
         """
-        parse[0] = BlockExpr(parse[2])
+        parse[0] = Block(expr_list=parse[2])
 
-    def p_block_expr_seq_many(self, parse):
+    def p_block_expr_seq(self, parse):
         """
-        block_expr_seq    : block_expr_seq expr SEMICOLON
+        block_expr_seq  : block_expr_seq expr SEMICOLON
+                        | expr SEMICOLON
         """
-        parse[0] = parse[1] + (parse[2],)
-
-    def p_block_expr_seq_single(self, parse):
-        """
-        block_expr_seq    : expr SEMICOLON
-        """
-        parse[0] = (parse[1],)
+        if len(parse) == 3:
+            parse[0] = (parse[1],)
+        else:
+            parse[0] = parse[1] + (parse[2],)
 
     def p_expr_assignment(self, parse):
         """
         expr    : ID ASSIGN expr
         """
-        parse[0] = AssignmentExpr(instance=Object(parse[1]), expression=parse[3])
+        parse[0] = Assignment(instance=Object(parse[1]), expr=parse[3])
 
     def p_expr_dynamic_dispatch(self, parse):
         """
-        expr : expr DOT ID LPAREN arguments_seq RPAREN
+        expr : expr DOT ID LPAREN arguments_seq_opt RPAREN
         """
-        parse[0] = DynamicDispatchExpr(instance=parse[1], method=parse[3], arguments=parse[5])
+        parse[0] = DynamicDispatch(instance=parse[1], method=parse[3], arguments=parse[5])
+
+    def p_arguments_seq_opt(self, parse):
+        """
+        arguments_seq_opt : arguments_seq
+        """
+        parse[0] = parse[1]
+
+    def p_arguments_seq_opt_empty(self, parse):
+        """
+        arguments_seq_opt : empty
+        """
+        parse[0] = tuple()
 
     def p_arguments_seq_many(self, parse):
         """
@@ -229,30 +246,24 @@ class PyCoolParser(object):
         """
         parse[0] = (parse[1],)
 
-    def p_arguments_seq_empty(self, parse):
-        """
-        arguments_seq : empty
-        """
-        parse[0] = tuple()
-
     def p_expr_static_dispatch(self, parse):
         """
-        expr : expr AT some_type DOT ID LPAREN arguments_seq RPAREN
+        expr : expr AT TYPE DOT ID LPAREN arguments_seq RPAREN
         """
-        p[0] = StaticDispatchExpr(instance=parse[1], dispatch_type=parse[3], method=parse[5], arguments=parse[7])
+        p[0] = StaticDispatch(instance=parse[1], dispatch_type=parse[3], method=parse[5], arguments=parse[7])
 
     def p_expr_self_dispatch(self, parse):
         """
         expr : ID LPAREN arguments_seq RPAREN
         """
-        parse[0] = DynamicDispatchExpr(instance="self", method=parse[1], arguments=parse[3])
+        parse[0] = DynamicDispatch(instance=Self(), method=parse[1], arguments=parse[3])
 
     def p_expr_math_operations(self, parse):
         """
-        expr    : expr PLUS expr
-                | expr MINUS expr
-                | expr MULTIPLY expr
-                | expr DIVIDE expr
+        expr : expr PLUS expr
+             | expr MINUS expr
+             | expr MULTIPLY expr
+             | expr DIVIDE expr
         """
         if parse[2] == '+':
             parse[0] = Addition(parse[1], parse[3])
@@ -265,9 +276,9 @@ class PyCoolParser(object):
 
     def p_expr_math_comparisons(self, parse):
         """
-        expr    : expr LT expr
-                | expr LTEQ expr
-                | expr EQ expr
+        expr : expr LTEQ expr
+             | expr LT expr
+             | expr EQ expr
         """
         if parse[2] == '<':
             parse[0] = LessThan(parse[1], parse[3])
@@ -278,65 +289,54 @@ class PyCoolParser(object):
 
     def p_expr_parenthesized(self, parse):
         """
-        expr    : LPAREN expr RPAREN
+        expr : LPAREN expr RPAREN
         """
         parse[0] = parse[2]
 
     def p_expr_if_then_else(self, parse):
         """
-        expr    : IF expr THEN expr ELSE expr FI
+        expr : IF expr THEN expr ELSE expr FI
         """
-        parse[0] = ConditionalExpr(predicate=parse[2], then_expression=parse[4], else_expression=parse[6])
+        parse[0] = If(predicate=parse[2], then_body=parse[4], else_body=parse[6])
 
     def p_expr_while_loop(self, parse):
         """
-        expr    : WHILE expr LOOP expr POOL
+        expr : WHILE expr LOOP expr POOL
         """
-        parse[0] = LoopExpr(predicate=parse[2], body=parse[4])
+        parse[0] = WhileLoop(predicate=parse[2], body=parse[4])
 
     # ############### LET EXPRESSION ###############
-
+    def p_expr_master(self, parse):
+        """
+        expr    : let_expr
+        """
     def p_expr_let(self, parse):
         """
-        expr    : LET ID COLON some_type IN expr
-        expr    : LET ID COLON some_type COMMA inner_lets
+        let_expr    : LET ID COLON TYPE IN expr
+                    | inner_lets COMMA LET ID COLON TYPE
         """
-        parse[0] = LetExpr(parse[2], parse[4], None, parse[6])
+        parse[0] = Let(instance=parse[2], let_type=parse[4], init_expr=None, body=parse[6])
 
     def p_expr_let_with_assignment(self, parse):
         """
-        expr    : LET ID COLON some_type ASSIGN expr IN expr
-        expr    : LET ID COLON some_type ASSIGN expr COMMA inner_lets
+        let_expr    : LET ID COLON TYPE ASSIGN expr IN expr
+                    | inner_lets COMMA LET ID COLON TYPE ASSIGN expr
         """
-        parse[0] = LetExpr(parse[2], parse[4], parse[6], parse[8])
-
-    def p_expr_let_with_error(self, parse):
-        """
-        expr    : LET error COMMA ID COLON some_type IN expr
-        expr    : LET error COMMA ID COLON some_type COMMA inner_lets
-        """
-        parse[0] = LetExpr(parse[4], parse[6], None, parse[8])
-
-    def p_expr_let_with_assignemnt_and_error(self, parse):
-        """
-        expr    : LET error COMMA ID COLON some_type ASSIGN expr IN expr
-        expr    : LET error COMMA ID COLON some_type ASSIGN expr COMMA inner_lets
-        """
-        parse[0] = LetExpr(parse[4], parse[6], parse[8], parse[10])
+        parse[0] = Let(instance=parse[2], let_type=parse[4], init_expr=parse[6], body=parse[8])
 
     def p_inner_lets_simple(self, parse):
         """
-        inner_lets  : ID COLON some_type IN expr
-        inner_lets  : ID COLON some_type COMMA inner_lets
+        inner_lets  : ID COLON TYPE IN expr
+                    | inner_lets COMMA ID COLON TYPE
         """
-        parse[0] = LetExpr(parse[1], parse[3], None, parse[5])
+        parse[0] = Let(instance=parse[1], let_type=parse[3], init_expr=None, body=parse[5])
 
     def p_inner_lets_with_assignments(self, parse):
         """
-        inner_lets  : ID COLON some_type ASSIGN expr IN expr
-        inner_lets  : ID COLON some_type ASSIGN expr COMMA inner_lets
+        inner_lets  : ID COLON TYPE ASSIGN expr IN expr
+                    | inner_lets COMMA ID COLON TYPE ASSIGN expr
         """
-        parse[0] = LetExpr(parse[1], parse[3], parse[5], parse[7])
+        parse[0] = Let(instance=parse[1], let_type=parse[3], init_expr=parse[5], body=parse[7])
 
     # ############### CASE EXPRESSION ###############
 
@@ -344,7 +344,7 @@ class PyCoolParser(object):
         """
         expr    : CASE expr OF actions_seq ESAC
         """
-        parse[0] = CaseExpr(expression=parse[2], actions=parse[4])
+        parse[0] = Case(expr=parse[2], actions=parse[4])
 
     def p_action_seq_many(self, parse):
         """
@@ -360,23 +360,23 @@ class PyCoolParser(object):
 
     def p_action_expr(self, parse):
         """
-        action  : ID COLON some_type ARROW expr SEMICOLON
+        action  : ID COLON TYPE ARROW expr SEMICOLON
         """
-        parse[0] = Action(identifier=parse[1], action_type=parse[3], body=parse[5])
+        parse[0] = Action(name=parse[1], action_type=parse[3], body=parse[5])
 
     #  ############### NEW, ISVOID, INT_COMP AND NOT EXPRESSIONS ###############
 
     def p_expr_new(self, parse):
         """
-        expr    : NEW some_type
+        expr    : NEW TYPE
         """
-        parse[0] = NewTypeExpr(new_type=parse[2])
+        parse[0] = NewObject(new_type=parse[2])
 
     def p_expr_isvoid(self, parse):
         """
         expr    : ISVOID expr
         """
-        parse[0] = IsVoidExpr(expression=parse[2])
+        parse[0] = IsVoid(expr=parse[2])
 
     def p_expr_integer_complement(self, parse):
         """
@@ -401,19 +401,6 @@ class PyCoolParser(object):
     def p_error(self, parse):
         print("Syntax error in input program at token: {!r}".format(parse))
 
-    @property
-    def precedence(self):
-        return (
-            ('right', 'ASSIGN'),
-            ('left', 'NOT'),
-            ('nonassoc', 'LTEQ', 'LT', 'EQ'),
-            ('left', 'PLUS', 'MINUS'),
-            ('left', 'MULTIPLY', 'DIVIDE'),
-            ('left', 'ISVOID'),
-            ('left', 'INT_COMP'),
-            ('left', 'AT'),
-            ('left', 'DOT')
-        )
     # ################### END OF FORMAL GRAMMAR RULES DECLARATION ######################
 
 
