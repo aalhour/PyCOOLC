@@ -22,16 +22,14 @@ class BaseNode:
     def to_tuple(self):
         return tuple(self._clsname)
 
+    def to_readable(self):
+        return "{}".format(self.to_tuple())
+
     def __repr__(self):
         return self.__str__()
 
     def __str__(self):
         return str(self.to_tuple())
-
-
-class ClassFeature(BaseNode):
-    def __init__(self):
-        super(ClassFeature, self).__init__()
 
 
 class Constant(BaseNode):
@@ -54,7 +52,7 @@ class BinaryOperation(Expr):
         super(BinaryOperation, self).__init__()
 
 
-# ############################## PROGRAM, TYPE AND INHERITANCE ##############################
+# ############################## PROGRAM, TYPE AND OBJECT ##############################
 
 
 class Program(BaseNode):
@@ -63,60 +61,94 @@ class Program(BaseNode):
         self.classes = classes
 
     def to_tuple(self):
-        return tuple([str(self.__class__), self.classes])
+        return tuple([self._clsname, self.classes])
+
+    def to_readable(self):
+        return "{}(classes={})".format(self.to_tuple())
 
 
-class Type(BaseNode):
-    def __init__(self, name, base_type, features):
-        super(Type, self).__init__()
+class Class(BaseNode):
+    def __init__(self, name, parent, features):
+        super(Class, self).__init__()
         self.name = name
-        self.base_type = base_type
+        self.parent = parent
         self.features = features
 
     def to_tuple(self):
-        return tuple([self._clsname, self.name, self.base_type, self.features])
+        return tuple([self._clsname, self.name, self.parent, self.features])
+
+    def to_readable(self):
+        return "{}(name={}, parent={}, features={})".format(self.to_tuple())
 
 
-class Inheritance(BaseNode):
-    def __init__(self, parent_type=None):
-        super(Inheritance, self).__init__()
-        self.type = parent_type
-
-    def to_tuple(self):
-        return tuple([self._clsname, self.type])
+class ClassFeature(BaseNode):
+    def __init__(self):
+        super(ClassFeature, self).__init__()
 
 
 class ClassMethod(ClassFeature):
-    def __init__(self, identifier, formal_params, return_type, method_body):
+    def __init__(self, name, formal_params, return_type, body):
         super(ClassMethod, self).__init__()
-        self.identifier = identifier
+        self.name = name
         self.formal_params = formal_params
         self.return_type = return_type
-        self.method_body = method_body
+        self.body = body
 
     def to_tuple(self):
-        return tuple([self._clsname, self.identifier, self.formal_params, self.return_type, self.method_body])
+        return tuple([self._clsname, self.name, self.formal_params, self.return_type, self.body])
+
+    def to_readable(self):
+        return "{}(name={}, formal_params={}, return_type={}, body={})".format(self.to_tuple())
 
 
 class ClassAttribute(ClassFeature):
-    def __init__(self, identifier, attribute_type, assignment_expr):
+    def __init__(self, name, attr_type, init_expr):
         super(ClassAttribute, self).__init__()
-        self.identifier = identifier
-        self.type = attribute_type
-        self.expr = assignment_expr
+        self.name = name
+        self.attr_type = attr_type
+        self.init_expr = init_expr
 
     def to_tuple(self):
-        return tuple([self._clsname, self.identifier, self.type, self.expr])
+        return tuple([self._clsname, self.name, self.attr_type, self.init_expr])
+
+    def to_readable(self):
+        return "{}(name={}, formal_params={}, return_type={}, body={})".format(self.to_tuple())
 
 
 class FormalParameter(ClassFeature):
-    def __init__(self, identifier, param_type):
+    def __init__(self, name, param_type):
         super(FormalParameter, self).__init__()
-        self.identifier = identifier
-        self.type = param_type
+        self.name = name
+        self.param_type = param_type
 
     def to_tuple(self):
-        return tuple([self._clsname, self.identifier, self.type])
+        return tuple([self._clsname, self.name, self.param_type])
+
+    def to_readable(self):
+        return "{}(name={}, param_type={})".format(self.to_tuple())
+
+
+class Object(BaseNode):
+    def __init__(self, name):
+        super(Object, self).__init__()
+        self.name = name
+
+    def to_tuple(self):
+        return tuple([self._clsname, self.name])
+
+    def to_readable(self):
+        return "{}(name={})".format(self.to_tuple())
+
+
+class Self(Object):
+    def __init__(self):
+        super(Self, self).__init__("SELF")
+
+    def to_tuple(self):
+        return tuple([self._clsname])
+
+    def to_readable(self):
+        return "{}".format(self._clsname)
 
 
 # ############################## CONSTANTS ##############################
@@ -130,6 +162,9 @@ class Integer(Constant):
     def to_tuple(self):
         return tuple([self._clsname, self.value])
 
+    def to_readable(self):
+        return "{}({})".format(self.to_tuple())
+
 
 class String(Constant):
     def __init__(self, value):
@@ -138,6 +173,9 @@ class String(Constant):
 
     def to_tuple(self):
         return tuple([self._clsname, self.value])
+
+    def to_readable(self):
+        return "{}({})".format(self.to_tuple())
 
 
 class Boolean(Constant):
@@ -148,93 +186,65 @@ class Boolean(Constant):
     def to_tuple(self):
         return tuple([self._clsname, self.value])
 
-
-class Object(Constant):
-    def __init__(self, identifier):
-        super(Object, self).__init__()
-        self.identifier = identifier
-
-    def to_tuple(self):
-        return tuple([self._clsname, self.identifier])
-
-
-# ############################## FORMAL AND ACTION ##############################
-
-
-class Formal(BaseNode):
-    def __init__(self, identifier, formal_type, assignment_expr):
-        super(Formal, self).__init__()
-        self.identifier = identifier
-        self.type = formal_type
-        self.expr = assignment_expr
-
-    def to_tuple(self):
-        return tuple([self._clsname, self.identifier, self.type, self.expr])
-
-
-class Action(BaseNode):
-    def __init__(self, identifier, action_type, body):
-        super(Action, self).__init__()
-        self.identifier = identifier
-        self.type = action_type
-        self.body = body
-
-    def to_tuple(self):
-        return tuple([self._clsname, self.identifier, self.type, self.body])
+    def to_readable(self):
+        return "{}({})".format(self.to_tuple())
 
 
 # ############################## EXPRESSIONS ##############################
 
 
-class IdentifierExpr(Expr):
-    def __init__(self, identifier):
-        super(IdentifierExpr, self).__init__()
-        self.identifier = identifier
-
-    def to_tuple(self):
-        return tuple([self._clsname, self.identifier])
-
-
-class NewTypeExpr(Expr):
+class NewObject(Expr):
     def __init__(self, new_type):
-        super(NewTypeExpr, self).__init__()
+        super(NewObject, self).__init__()
         self.type = new_type
 
     def to_tuple(self):
         return tuple([self._clsname, self.type])
 
+    def to_readable(self):
+        return "{}(type={})".format(self.to_tuple())
 
-class IsVoidExpr(Expr):
-    def __init__(self, expression):
-        super(IsVoidExpr, self).__init__()
-        self.expr = expression
+
+class IsVoid(Expr):
+    def __init__(self, expr):
+        super(IsVoid, self).__init__()
+        self.expr = expr
 
     def to_tuple(self):
         return tuple([self._clsname, self.expr])
 
+    def to_readable(self):
+        return "{}(expr={})".format(self.to_tuple())
 
-class AssignmentExpr(Expr):
-    def __init__(self, instance, expression):
-        super(AssignmentExpr, self).__init__()
+
+class Assignment(Expr):
+    def __init__(self, instance, expr):
+        super(Assignment, self).__init__()
         self.instance = instance
-        self.expression = expression
+        self.expr = expr
 
     def to_tuple(self):
-        return tuple([self._clsname, self.instance, self.expression])
+        return tuple([self._clsname, self.instance, self.expr])
+
+    def to_readable(self):
+        return "{}(instance={}, expr={})".format(self.to_tuple())
 
 
-class BlockExpr(Expr):
-    def __init__(self, expressions):
-        super(BlockExpr, self).__init__()
-        self.expressions = expressions
+class Block(Expr):
+    def __init__(self, expr_list):
+        super(Block, self).__init__()
+        self.expr_list = expr_list
 
     def to_tuple(self):
-        return tuple([self._clsname, self.expressions])
+        return tuple([self._clsname, self.expr_list])
+
+    def to_readable(self):
+        return "{}(expr_list={})".format(self.to_tuple())
 
 
-class DynamicDispatchExpr(Expr):
+class DynamicDispatch(Expr):
     def __init__(self, instance, method, arguments):
-        super(DynamicDispatchExpr, self).__init__()
+        super(DynamicDispatch, self).__init__()
         self.instance = instance
         self.method = method
         self.arguments = arguments if arguments is not None else tuple()
@@ -242,65 +252,95 @@ class DynamicDispatchExpr(Expr):
     def to_tuple(self):
         return tuple([self._clsname, self.instance, self.method, self.arguments])
 
+    def to_readable(self):
+        return "{}(instance={}, method={}, arguments={})".format(self.to_tuple())
 
-class StaticDispatchExpr(Expr):
+
+class StaticDispatch(Expr):
     def __init__(self, instance, dispatch_type, method, arguments):
-        super(StaticDispatchExpr, self).__init__()
+        super(StaticDispatch, self).__init__()
         self.instance = instance
         self.dispatch_type = dispatch_type
         self.method = method
         self.arguments = arguments if arguments is not None else tuple()
 
     def to_tuple(self):
-        return tuple([
-            self._clsname, self.instance, self.dispatch_type, self.method, self.arguments
-        ])
+        return tuple([self._clsname, self.instance, self.dispatch_type, self.method, self.arguments])
+
+    def to_readable(self):
+        return "{}(instance={}, dispatch_type={}, method={}, arguments={})".format(self.to_tuple())
 
 
-class LetExpr(Expr):
-    def __init__(self, instance, let_type, assignment_expr, body):
-        super(LetExpr, self).__init__()
+class Let(Expr):
+    def __init__(self, instance, let_type, init_expr, body):
+        super(Let, self).__init__()
         self.instance = instance
         self.let_type = let_type
-        self.assignment_expr = assignment_expr
+        self.init_expr = init_expr
         self.body = body
 
     def to_tuple(self):
-        return tuple([self._clsname, self.instance, self.let_type, self.assignment_expr, self.body])
+        return tuple([self._clsname, self.instance, self.let_type, self.init_expr, self.body])
+
+    def to_readable(self):
+        return "{}(instance={}, let_type={}, init_expr={}, body={})".format(self.to_tuple())
 
 
-class ConditionalExpr(Expr):
-    def __init__(self, predicate, then_expression, else_expression):
-        super(ConditionalExpr, self).__init__()
+class If(Expr):
+    def __init__(self, predicate, then_body, else_body):
+        super(If, self).__init__()
         self.predicate = predicate
-        self.then_expression = then_expression
-        self.else_expression = else_expression
+        self.then_body = then_body
+        self.else_body = else_body
 
     def to_tuple(self):
-        return tuple([self._clsname, self.predicate, self.then_expression, self.else_expression])
+        return tuple([self._clsname, self.predicate, self.then_body, self.else_body])
+
+    def to_readable(self):
+        return "{}(predicate={}, then_body={}, else_body={})".format(self.to_tuple())
 
 
-class LoopExpr(Expr):
+class WhileLoop(Expr):
     def __init__(self, predicate, body):
-        super(LoopExpr, self).__init__()
+        super(WhileLoop, self).__init__()
         self.predicate = predicate
         self.body = body
 
     def to_tuple(self):
         return tuple([self._clsname, self.predicate, self.body])
 
+    def to_readable(self):
+        return "{}(predicate={}, body={})".format(self.to_tuple())
 
-class CaseExpr(Expr):
-    def __init__(self, expression, actions):
-        super(CaseExpr, self).__init__()
-        self.expr = expression
+
+class Case(Expr):
+    def __init__(self, expr, actions):
+        super(Case, self).__init__()
+        self.expr = expr
         self.actions = actions
 
     def to_tuple(self):
         return tuple([self._clsname, self.expr, self.actions])
 
+    def to_readable(self):
+        return "{}(expr={}, actions={})".format(self.to_tuple())
 
-# ############################## OPERATIONS ##################################
+
+class Action(BaseNode):
+    def __init__(self, name, action_type, body):
+        super(Action, self).__init__()
+        self.name = name
+        self.action_type = action_type
+        self.body = body
+
+    def to_tuple(self):
+        return tuple([self._clsname, self.name, self.action_type, self.body])
+
+    def to_readable(self):
+        return "{}(name={}, action_type={}, body={})".format(self.to_tuple())
+
+
+# ############################## UNARY OPERATIONS ##################################
 
 
 class IntegerComplement(UnaryOperation):
@@ -312,6 +352,9 @@ class IntegerComplement(UnaryOperation):
     def to_tuple(self):
         return tuple([self._clsname, self.integer_expr])
 
+    def to_readable(self):
+        return "{}(expr={})".format(self.to_tuple())
+
 
 class BooleanComplement(UnaryOperation):
     def __init__(self, boolean_expr):
@@ -321,6 +364,12 @@ class BooleanComplement(UnaryOperation):
 
     def to_tuple(self):
         return tuple([self._clsname, self.boolean_expr])
+
+    def to_readable(self):
+        return "{}(expr={})".format(self.to_tuple())
+
+
+# ############################## BINARY OPERATIONS ##################################
 
 
 class Addition(BinaryOperation):
@@ -333,6 +382,9 @@ class Addition(BinaryOperation):
     def to_tuple(self):
         return tuple([self._clsname, self.integer_expr_1, self.integer_expr_2])
 
+    def to_readable(self):
+        return "{}(int_expr1={}, int_expr2={})".format(self.to_tuple())
+
 
 class Subtraction(BinaryOperation):
     def __init__(self, integer_expr_1, integer_expr_2):
@@ -343,6 +395,9 @@ class Subtraction(BinaryOperation):
 
     def to_tuple(self):
         return tuple([self._clsname, self.integer_expr_1, self.integer_expr_2])
+
+    def to_readable(self):
+        return "{}(int_expr1={}, int_expr2={})".format(self.to_tuple())
 
 
 class Multiplication(BinaryOperation):
@@ -355,6 +410,9 @@ class Multiplication(BinaryOperation):
     def to_tuple(self):
         return tuple([self._clsname, self.integer_expr_1, self.integer_expr_2])
 
+    def to_readable(self):
+        return "{}(int_expr1={}, int_expr2={})".format(self.to_tuple())
+
 
 class Division(BinaryOperation):
     def __init__(self, integer_expr_1, integer_expr_2):
@@ -365,6 +423,9 @@ class Division(BinaryOperation):
 
     def to_tuple(self):
         return tuple([self._clsname, self.integer_expr_1, self.integer_expr_2])
+
+    def to_readable(self):
+        return "{}(int_expr1={}, int_expr2={})".format(self.to_tuple())
 
 
 class Equal(BinaryOperation):
@@ -377,6 +438,9 @@ class Equal(BinaryOperation):
     def to_tuple(self):
         return tuple([self._clsname, self.integer_expr_1, self.integer_expr_2])
 
+    def to_readable(self):
+        return "{}(int_expr1={}, int_expr2={})".format(self.to_tuple())
+
 
 class LessThan(BinaryOperation):
     def __init__(self, integer_expr_1, integer_expr_2):
@@ -388,6 +452,9 @@ class LessThan(BinaryOperation):
     def to_tuple(self):
         return tuple([self._clsname, self.integer_expr_1, self.integer_expr_2])
 
+    def to_readable(self):
+        return "{}(int_expr1={}, int_expr2={})".format(self.to_tuple())
+
 
 class LessThanOrEqual(BinaryOperation):
     def __init__(self, integer_expr_1, integer_expr_2):
@@ -398,6 +465,9 @@ class LessThanOrEqual(BinaryOperation):
 
     def to_tuple(self):
         return tuple([self._clsname, self.integer_expr_1, self.integer_expr_2])
+
+    def to_readable(self):
+        return "{}(int_expr1={}, int_expr2={})".format(self.to_tuple())
 
 
 # ############################## HELPER METHODS ##############################
