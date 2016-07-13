@@ -23,13 +23,13 @@ class BaseNode:
         return tuple(self._clsname)
 
     def to_readable(self):
-        return "{}".format(self.to_tuple())
+        return "{}".format(self._clsname)
 
     def __repr__(self):
         return self.__str__()
 
     def __str__(self):
-        return str(self.to_tuple())
+        return str(self.to_readable())
 
 
 class Constant(BaseNode):
@@ -64,7 +64,7 @@ class Program(BaseNode):
         return tuple([self._clsname, self.classes])
 
     def to_readable(self):
-        return "{}(classes={})".format(self.to_tuple())
+        return "{}(classes={})".format(self._clsname, self.classes)
 
 
 class Class(BaseNode):
@@ -78,7 +78,7 @@ class Class(BaseNode):
         return tuple([self._clsname, self.name, self.parent, self.features])
 
     def to_readable(self):
-        return "{}(name={}, parent={}, features={})".format(self.to_tuple())
+        return "{}(name='{}', parent={}, features={})".format(self._clsname, self.name, self.parent, self.features)
 
 
 class ClassFeature(BaseNode):
@@ -98,7 +98,8 @@ class ClassMethod(ClassFeature):
         return tuple([self._clsname, self.name, self.formal_params, self.return_type, self.body])
 
     def to_readable(self):
-        return "{}(name={}, formal_params={}, return_type={}, body={})".format(self.to_tuple())
+        return "{}(name='{}', formal_params={}, return_type={}, body={})".format(
+            self._clsname, self.name, self.formal_params, self.return_type, self.body)
 
 
 class ClassAttribute(ClassFeature):
@@ -112,7 +113,8 @@ class ClassAttribute(ClassFeature):
         return tuple([self._clsname, self.name, self.attr_type, self.init_expr])
 
     def to_readable(self):
-        return "{}(name={}, formal_params={}, return_type={}, body={})".format(self.to_tuple())
+        return "{}(name='{}', attr_type={}, init_expr={})".format(
+            self._clsname, self.name, self.attr_type, self.init_expr)
 
 
 class FormalParameter(ClassFeature):
@@ -125,7 +127,7 @@ class FormalParameter(ClassFeature):
         return tuple([self._clsname, self.name, self.param_type])
 
     def to_readable(self):
-        return "{}(name={}, param_type={})".format(self.to_tuple())
+        return "{}(name='{}', param_type={})".format(self._clsname, self.name, self.param_type)
 
 
 class Object(BaseNode):
@@ -137,7 +139,7 @@ class Object(BaseNode):
         return tuple([self._clsname, self.name])
 
     def to_readable(self):
-        return "{}(name={})".format(self.to_tuple())
+        return "{}(name='{}')".format(self._clsname, self.name)
 
 
 class Self(Object):
@@ -155,39 +157,39 @@ class Self(Object):
 
 
 class Integer(Constant):
-    def __init__(self, value):
+    def __init__(self, content):
         super(Integer, self).__init__()
-        self.value = int(value)
+        self.content = content
 
     def to_tuple(self):
-        return tuple([self._clsname, self.value])
+        return tuple([self._clsname, self.content])
 
     def to_readable(self):
-        return "{}({})".format(self.to_tuple())
+        return "{}(content={})".format(self._clsname, self.content)
 
 
 class String(Constant):
-    def __init__(self, value):
+    def __init__(self, content):
         super(String, self).__init__()
-        self.value = str(value)
+        self.content = content
 
     def to_tuple(self):
-        return tuple([self._clsname, self.value])
+        return tuple([self._clsname, self.content])
 
     def to_readable(self):
-        return "{}({})".format(self.to_tuple())
+        return "{}(content={})".format(self._clsname, repr(self.content))
 
 
 class Boolean(Constant):
-    def __init__(self, value):
+    def __init__(self, content):
         super(Boolean, self).__init__()
-        self.value = value is True
+        self.content = content
 
     def to_tuple(self):
-        return tuple([self._clsname, self.value])
+        return tuple([self._clsname, self.content])
 
     def to_readable(self):
-        return "{}({})".format(self.to_tuple())
+        return "{}(content={})".format(self._clsname, self.content)
 
 
 # ############################## EXPRESSIONS ##############################
@@ -202,7 +204,7 @@ class NewObject(Expr):
         return tuple([self._clsname, self.type])
 
     def to_readable(self):
-        return "{}(type={})".format(self.to_tuple())
+        return "{}(type={})".format(self._clsname, self.type)
 
 
 class IsVoid(Expr):
@@ -214,7 +216,7 @@ class IsVoid(Expr):
         return tuple([self._clsname, self.expr])
 
     def to_readable(self):
-        return "{}(expr={})".format(self.to_tuple())
+        return "{}(expr={})".format(self._clsname, self.expr)
 
 
 class Assignment(Expr):
@@ -227,7 +229,7 @@ class Assignment(Expr):
         return tuple([self._clsname, self.instance, self.expr])
 
     def to_readable(self):
-        return "{}(instance={}, expr={})".format(self.to_tuple())
+        return "{}(instance={}, expr={})".format(self._clsname, self.instance, self.expr)
 
 
 class Block(Expr):
@@ -239,7 +241,7 @@ class Block(Expr):
         return tuple([self._clsname, self.expr_list])
 
     def to_readable(self):
-        return "{}(expr_list={})".format(self.to_tuple())
+        return "{}(expr_list={})".format(self._clsname, self.expr_list)
 
 
 class DynamicDispatch(Expr):
@@ -253,7 +255,8 @@ class DynamicDispatch(Expr):
         return tuple([self._clsname, self.instance, self.method, self.arguments])
 
     def to_readable(self):
-        return "{}(instance={}, method={}, arguments={})".format(self.to_tuple())
+        return "{}(instance={}, method={}, arguments={})".format(
+            self._clsname, self.instance, self.method, self.arguments)
 
 
 class StaticDispatch(Expr):
@@ -268,22 +271,24 @@ class StaticDispatch(Expr):
         return tuple([self._clsname, self.instance, self.dispatch_type, self.method, self.arguments])
 
     def to_readable(self):
-        return "{}(instance={}, dispatch_type={}, method={}, arguments={})".format(self.to_tuple())
+        return "{}(instance={}, dispatch_type={}, method={}, arguments={})".format(
+            self._clsname, self.instance, self.dispatch_type, self.method, self.arguments)
 
 
 class Let(Expr):
-    def __init__(self, instance, let_type, init_expr, body):
+    def __init__(self, instance, return_type, init_expr, body):
         super(Let, self).__init__()
         self.instance = instance
-        self.let_type = let_type
+        self.return_type = return_type
         self.init_expr = init_expr
         self.body = body
 
     def to_tuple(self):
-        return tuple([self._clsname, self.instance, self.let_type, self.init_expr, self.body])
+        return tuple([self._clsname, self.instance, self.return_type, self.init_expr, self.body])
 
     def to_readable(self):
-        return "{}(instance={}, let_type={}, init_expr={}, body={})".format(self.to_tuple())
+        return "{}(instance={}, return_type={}, init_expr={}, body={})".format(
+            self._clsname, self.instance, self.return_type, self.init_expr, self.body)
 
 
 class If(Expr):
@@ -297,7 +302,8 @@ class If(Expr):
         return tuple([self._clsname, self.predicate, self.then_body, self.else_body])
 
     def to_readable(self):
-        return "{}(predicate={}, then_body={}, else_body={})".format(self.to_tuple())
+        return "{}(predicate={}, then_body={}, else_body={})".format(
+            self._clsname, self.predicate, self.then_body, self.else_body)
 
 
 class WhileLoop(Expr):
@@ -310,7 +316,7 @@ class WhileLoop(Expr):
         return tuple([self._clsname, self.predicate, self.body])
 
     def to_readable(self):
-        return "{}(predicate={}, body={})".format(self.to_tuple())
+        return "{}(predicate={}, body={})".format(self._clsname, self.predicate, self.body)
 
 
 class Case(Expr):
@@ -323,7 +329,7 @@ class Case(Expr):
         return tuple([self._clsname, self.expr, self.actions])
 
     def to_readable(self):
-        return "{}(expr={}, actions={})".format(self.to_tuple())
+        return "{}(expr={}, actions={})".format(self._clsname, self.expr, self.actions)
 
 
 class Action(BaseNode):
@@ -337,7 +343,7 @@ class Action(BaseNode):
         return tuple([self._clsname, self.name, self.action_type, self.body])
 
     def to_readable(self):
-        return "{}(name={}, action_type={}, body={})".format(self.to_tuple())
+        return "{}(name='{}', action_type={}, body={})".format(self._clsname, self.name, self.action_type, self.body)
 
 
 # ############################## UNARY OPERATIONS ##################################
@@ -353,7 +359,7 @@ class IntegerComplement(UnaryOperation):
         return tuple([self._clsname, self.integer_expr])
 
     def to_readable(self):
-        return "{}(expr={})".format(self.to_tuple())
+        return "{}(expr={})".format(self._clsname, self.integer_expr)
 
 
 class BooleanComplement(UnaryOperation):
@@ -366,108 +372,108 @@ class BooleanComplement(UnaryOperation):
         return tuple([self._clsname, self.boolean_expr])
 
     def to_readable(self):
-        return "{}(expr={})".format(self.to_tuple())
+        return "{}(expr={})".format(self._clsname, self.boolean_expr)
 
 
 # ############################## BINARY OPERATIONS ##################################
 
 
 class Addition(BinaryOperation):
-    def __init__(self, integer_expr_1, integer_expr_2):
+    def __init__(self, first, second):
         super(Addition, self).__init__()
         self.symbol = "+"
-        self.integer_expr_1 = integer_expr_1
-        self.integer_expr_2 = integer_expr_2
+        self.first = first
+        self.second = second
 
     def to_tuple(self):
-        return tuple([self._clsname, self.integer_expr_1, self.integer_expr_2])
+        return tuple([self._clsname, self.first, self.second])
 
     def to_readable(self):
-        return "{}(int_expr1={}, int_expr2={})".format(self.to_tuple())
+        return "{}(first={}, second={})".format(self._clsname, self.first, self.second)
 
 
 class Subtraction(BinaryOperation):
-    def __init__(self, integer_expr_1, integer_expr_2):
+    def __init__(self, first, second):
         super(Subtraction, self).__init__()
         self.symbol = "-"
-        self.integer_expr_1 = integer_expr_1
-        self.integer_expr_2 = integer_expr_2
+        self.first = first
+        self.second = second
 
     def to_tuple(self):
-        return tuple([self._clsname, self.integer_expr_1, self.integer_expr_2])
+        return tuple([self._clsname, self.first, self.second])
 
     def to_readable(self):
-        return "{}(int_expr1={}, int_expr2={})".format(self.to_tuple())
+        return "{}(first={}, second={})".format(self._clsname, self.first, self.second)
 
 
 class Multiplication(BinaryOperation):
-    def __init__(self, integer_expr_1, integer_expr_2):
+    def __init__(self, first, second):
         super(Multiplication, self).__init__()
         self.symbol = "*"
-        self.integer_expr_1 = integer_expr_1
-        self.integer_expr_2 = integer_expr_2
+        self.first = first
+        self.second = second
 
     def to_tuple(self):
-        return tuple([self._clsname, self.integer_expr_1, self.integer_expr_2])
+        return tuple([self._clsname, self.first, self.second])
 
     def to_readable(self):
-        return "{}(int_expr1={}, int_expr2={})".format(self.to_tuple())
+        return "{}(first={}, second={})".format(self._clsname, self.first, self.second)
 
 
 class Division(BinaryOperation):
-    def __init__(self, integer_expr_1, integer_expr_2):
+    def __init__(self, first, second):
         super(Division, self).__init__()
         self.symbol = "/"
-        self.integer_expr_1 = integer_expr_1
-        self.integer_expr_2 = integer_expr_2
+        self.first = first
+        self.second = second
 
     def to_tuple(self):
-        return tuple([self._clsname, self.integer_expr_1, self.integer_expr_2])
+        return tuple([self._clsname, self.first, self.second])
 
     def to_readable(self):
-        return "{}(int_expr1={}, int_expr2={})".format(self.to_tuple())
+        return "{}(first={}, second={})".format(self._clsname, self.first, self.second)
 
 
 class Equal(BinaryOperation):
-    def __init__(self, integer_expr_1, integer_expr_2):
+    def __init__(self, first, second):
         super(Equal, self).__init__()
         self.symbol = "="
-        self.integer_expr_1 = integer_expr_1
-        self.integer_expr_2 = integer_expr_2
+        self.first = first
+        self.second = second
 
     def to_tuple(self):
-        return tuple([self._clsname, self.integer_expr_1, self.integer_expr_2])
+        return tuple([self._clsname, self.first, self.second])
 
     def to_readable(self):
-        return "{}(int_expr1={}, int_expr2={})".format(self.to_tuple())
+        return "{}(first={}, second={})".format(self._clsname, self.first, self.second)
 
 
 class LessThan(BinaryOperation):
-    def __init__(self, integer_expr_1, integer_expr_2):
+    def __init__(self, first, second):
         super(LessThan, self).__init__()
         self.symbol = "<"
-        self.integer_expr_1 = integer_expr_1
-        self.integer_expr_2 = integer_expr_2
+        self.first = first
+        self.second = second
 
     def to_tuple(self):
-        return tuple([self._clsname, self.integer_expr_1, self.integer_expr_2])
+        return tuple([self._clsname, self.first, self.second])
 
     def to_readable(self):
-        return "{}(int_expr1={}, int_expr2={})".format(self.to_tuple())
+        return "{}(first={}, second={})".format(self._clsname, self.first, self.second)
 
 
 class LessThanOrEqual(BinaryOperation):
-    def __init__(self, integer_expr_1, integer_expr_2):
+    def __init__(self, first, second):
         super(LessThanOrEqual, self).__init__()
         self.symbol = "<="
-        self.integer_expr_1 = integer_expr_1
-        self.integer_expr_2 = integer_expr_2
+        self.first = first
+        self.second = second
 
     def to_tuple(self):
-        return tuple([self._clsname, self.integer_expr_1, self.integer_expr_2])
+        return tuple([self._clsname, self.first, self.second])
 
     def to_readable(self):
-        return "{}(int_expr1={}, int_expr2={})".format(self.to_tuple())
+        return "{}(first={}, second={})".format(self._clsname, self.first, self.second)
 
 
 # ############################## HELPER METHODS ##############################
