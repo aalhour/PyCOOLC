@@ -1,3 +1,4 @@
+poc/
 dist/
 build/
 pycoolc/__pycache__/
@@ -7,4 +8,3 @@ pycoolc/__pycache__/
 *.egg-info
 *.out
 parsetab.py
-poc_*
