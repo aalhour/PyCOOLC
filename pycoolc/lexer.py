@@ -13,7 +13,7 @@ import ply.lex as lex
 from ply.lex import TOKEN
 
 
-class PyCoolLexer(object):
+class PyCoolLexer:
     """
     PyCoolLexer class.
 
@@ -73,99 +73,7 @@ class PyCoolLexer(object):
         if build_lexer is True:
             self.build(debug=debug, optimize=optimize, outputdir=outputdir, debuglog=debuglog, errorlog=errorlog)
 
-    # ################################# PUBLIC #########################################
-
-    def build(self, **kwargs):
-        """
-        Builds the PyCoolLexer instance with lex.lex() by binding the tokens list, reserved keywords map and lexer
-        object in the current instance scope.
-        :param kwargs: config parameters map, complete list:
-            * debug: Debug mode flag.
-            * optimize: Optimize mode flag.
-            * debuglog: Debug log file path; by default lexer prints to stderr.
-            * errorlog: Error log file path; by default lexer print to stderr.
-            * outputdir: Output directory of lexing output; by default the .out file goes in the same directory.
-        :return: None
-        """
-        # Parse the parameters
-        if kwargs is None or len(kwargs) == 0:
-            debug, optimize, outputdir, debuglog, errorlog = \
-                self._debug, self._optimize, self._outputdir, self._debuglog, self._errorlog
-        else:
-            debug = kwargs.get("debug", self._debug)
-            optimize = kwargs.get("optimize", self._optimize)
-            outputdir = kwargs.get("outputdir", self._outputdir)
-            debuglog = kwargs.get("debuglog", self._debuglog)
-            errorlog = kwargs.get("errorlog", self._errorlog)
-
-        # Expose the reserved map and tokens tuple to the class scope for ply.lex
-        self.reserved = self.basic_reserved
-        self.tokens = self.tokens_collection + tuple(self.reserved.values())
-
-        # Build internal ply.lex instance
-        self.lexer = lex.lex(
-            module=self, debug=debug, optimize=optimize, outputdir=outputdir, debuglog=debuglog, errorlog=errorlog)
-
-    def input(self, cool_program_source_code):
-        """
-        Run lexical analysis on a given COOL program source code string.
-        :param cool_program_source_code: COOL program source code as a string.
-        :return: None.
-        """
-        if self.lexer is None:
-            raise Exception("Lexer was not built. Try calling the build() method first, and then tokenize().")
-
-        self.lexer.input(cool_program_source_code)
-
-    def token(self):
-        """
-        Advanced the lexers tokens tape one place and returns the current token.
-        :side-effects: Modifies self.last_token.
-        :return: Token.
-        """
-        if self.lexer is None:
-            raise Exception("Lexer was not built. Try building the lexer with the build() method.")
-
-        self.last_token = self.lexer.token()
-        return self.last_token
-
-    def clone_ply_lex(self):
-        """
-        Clones the internal ply.lex instance, returns a new copy.
-        :return: ply.lex clone.
-        """
-        a_clone = self.lexer.clone()
-        return a_clone
-
-    @staticmethod
-    def test(program_source_code):
-        """
-        Given a cool program source code string try to run lexical analysis on it and return all tokens as an iterator.
-        :param program_source_code: String.
-        :return: Iterator.
-        """
-        temp_lexer = PyCoolLexer()
-        temp_lexer.input(program_source_code)
-        iter_token_stream = iter([some_token for some_token in temp_lexer])
-        del temp_lexer
-        return iter_token_stream
-            
-
-    # ################### ITERATOR PROTOCOL ######################################################
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        t = self.token()
-        if t is None:
-            raise StopIteration
-        return t
-
-    def next(self):
-        return self.__next__()
-
-    # ################### READONLY PROPERTIES: TOKENS, STATES AND RESERVED KEYWORDS ############
+    # #################################  READONLY  #####################################
 
     @property
     def tokens_collection(self):
@@ -187,10 +95,7 @@ class PyCoolLexer(object):
             "PLUS", "MINUS", "MULTIPLY", "DIVIDE", "EQ", "LT", "LTEQ", "ASSIGN", "INT_COMP", "NOT",
 
             # Special Operators
-            "ARROW",
-
-            # IGNORED
-            "SINGLE_LINE_COMMENT"
+            "ARROW"
         )
 
     @property
@@ -200,7 +105,6 @@ class PyCoolLexer(object):
         :return: dict.
         """
         return {
-            # KEYWORDS - alphabetical order
             "case": "CASE",
             "class": "CLASS",
             "else": "ELSE",
@@ -263,8 +167,11 @@ class PyCoolLexer(object):
 
     @property
     def builtin_types(self):
+        """
+        A map of the built-in types.
+        :return dict
+        """
         return {
-            # BASIC TYPES - alphabetical order
             "Bool": "BOOL_TYPE",
             "Int": "INT_TYPE",
             "IO": "IO_TYPE",
@@ -274,17 +181,9 @@ class PyCoolLexer(object):
             "SELF_TYPE": "SELF_TYPE"
         }
 
-    # ################################# PRIVATE ########################################
+    # ################################  PRIVATE  #######################################
 
     # ################# START OF LEXICAL ANALYSIS RULES DECLARATION ####################
-
-    # LEXER STATES
-    @property
-    def states(self):
-        return (
-            ("STRING", "exclusive"),
-            ("COMMENT", "exclusive")
-        )
 
     # Ignore rule for single line comments
     t_ignore_SINGLE_LINE_COMMENT = r"\-\-[^\n]*"
@@ -311,13 +210,6 @@ class PyCoolLexer(object):
     t_ASSIGN = r'\<\-'      # <-
     t_NOT = r'not'          # not
     t_ARROW = r'\=\>'       # =>
-
-    ###
-    # COMPLEX TOKENS
-    #
-    # @TOKEN(r"\-\-[^\n]*")
-    # def t_SINGLE_LINE_COMMENT(self, token):
-    #    pass
 
     @TOKEN(r"(true|false)")
     def t_BOOLEAN(self, token):
@@ -352,88 +244,6 @@ class PyCoolLexer(object):
         token.type = self.basic_reserved.get(token.value, 'ID')
         return token
 
-    # THE STRING STATE
-    @TOKEN(r"\"")
-    def t_start_string(self, t):
-        t.lexer.push_state("STRING")
-        t.lexer.string_backslashed = False
-        t.lexer.stringbuf = ""
-
-    @TOKEN(r"\n")
-    def t_STRING_newline(self, t):
-        t.lexer.lineno += 1
-        if not t.lexer.string_backslashed:
-            print("String newline not escaped")
-            t.lexer.skip(1)
-        else:
-            t.lexer.string_backslashed = False
-
-    @TOKEN(r"\"")
-    def t_STRING_end(self, t):
-        if not t.lexer.string_backslashed:
-            t.lexer.pop_state()
-            # TODO: insert checks
-            t.value = t.lexer.stringbuf
-            t.type = "STRING"
-            return t
-        else:
-            t.lexer.stringbuf += '"'
-            t.lexer.string_backslashed = False
-
-    @TOKEN(r"[^\n]")
-    def t_STRING_anything(self, t):
-        if t.lexer.string_backslashed:
-            if t.value == 'b':
-                t.lexer.stringbuf += '\b'
-            elif t.value == 't':
-                t.lexer.stringbuf += '\t'
-            elif t.value == 'n':
-                t.lexer.stringbuf += '\n'
-            elif t.value == 'f':
-                t.lexer.stringbuf += '\f'
-            elif t.value == '\\':
-                t.lexer.stringbuf += '\\'
-            else:
-                t.lexer.stringbuf += t.value
-            t.lexer.string_backslashed = False
-        else:
-            if t.value != '\\':
-                t.lexer.stringbuf += t.value
-            else:
-                t.lexer.string_backslashed = True
-
-    # STRING ignored characters
-    t_STRING_ignore = ''
-
-    # STRING error handler
-    def t_STRING_error(self, t):
-        print("Illegal character '%s'" % t.value[0])
-        t.lexer.skip(1)
-
-    # THE COMMENT STATE
-    @TOKEN(r"\(\*")
-    def t_start_comment(self, t):
-        t.lexer.push_state("COMMENT")
-        t.lexer.comment_count = 0
-
-    @TOKEN(r"\(\*")
-    def t_COMMENT_startanother(self, t):
-        t.lexer.comment_count += 1
-
-    @TOKEN(r"\*\)")
-    def t_COMMENT_end(self, t):
-        if t.lexer.comment_count == 0:
-            t.lexer.pop_state()
-        else:
-            t.lexer.comment_count -= 1
-
-    # COMMENT ignored characters
-    t_COMMENT_ignore = ''
-
-    # COMMENT error handler
-    def t_COMMENT_error(self, t):
-        t.lexer.skip(1)
-
     @TOKEN(r"\n+")
     def t_newline(self, token):
         """
@@ -441,25 +251,198 @@ class PyCoolLexer(object):
         """
         token.lexer.lineno += len(token.value)
 
-    @TOKEN(r"[\ \t\s\f\v\r]+")
-    def t_WHITESPACE(self, token):
-        """
-        The Whitespace Token Rule.
-        This rule replaces the PLY t_ignore simple regex rule (t_ignore = r' \t').
-        """
-        pass
+    # Ignore Whitespace Character Rule
+    t_ignore = ' \t\r\f'
 
-    # # Empty Ignored Characters Rule
-    t_ignore = r''
+    # LEXER STATES
+    @property
+    def states(self):
+        return (
+            ("STRING", "exclusive"),
+            ("COMMENT", "exclusive")
+        )
+
+    # THE STRING STATE
+    @TOKEN(r"\"")
+    def t_start_string(self, token):
+        token.lexer.push_state("STRING")
+        token.lexer.string_backslashed = False
+        token.lexer.stringbuf = ""
+
+    @TOKEN(r"\n")
+    def t_STRING_newline(self, token):
+        token.lexer.lineno += 1
+        if not token.lexer.string_backslashed:
+            print("String newline not escaped")
+            token.lexer.skip(1)
+        else:
+            token.lexer.string_backslashed = False
+
+    @TOKEN(r"\"")
+    def t_STRING_end(self, token):
+        if not token.lexer.string_backslashed:
+            token.lexer.pop_state()
+            # TODO: insert checks
+            token.value = token.lexer.stringbuf
+            token.type = "STRING"
+            return token
+        else:
+            token.lexer.stringbuf += '"'
+            token.lexer.string_backslashed = False
+
+    @TOKEN(r"[^\n]")
+    def t_STRING_anything(self, token):
+        if token.lexer.string_backslashed:
+            if token.value == 'b':
+                token.lexer.stringbuf += '\b'
+            elif token.value == 't':
+                token.lexer.stringbuf += '\t'
+            elif token.value == 'n':
+                token.lexer.stringbuf += '\n'
+            elif token.value == 'f':
+                token.lexer.stringbuf += '\f'
+            elif token.value == '\\':
+                token.lexer.stringbuf += '\\'
+            else:
+                token.lexer.stringbuf += token.value
+            token.lexer.string_backslashed = False
+        else:
+            if token.value != '\\':
+                token.lexer.stringbuf += token.value
+            else:
+                token.lexer.string_backslashed = True
+
+    # STRING ignored characters
+    t_STRING_ignore = ''
+
+    # STRING error handler
+    def t_STRING_error(self, token):
+        print("Illegal character '%s'" % token.value[0])
+        token.lexer.skip(1)
+
+    # THE COMMENT STATE
+    @TOKEN(r"\(\*")
+    def t_start_comment(self, token):
+        token.lexer.push_state("COMMENT")
+        token.lexer.comment_count = 0
+
+    @TOKEN(r"\(\*")
+    def t_COMMENT_startanother(self, t):
+        t.lexer.comment_count += 1
+
+    @TOKEN(r"\*\)")
+    def t_COMMENT_end(self, token):
+        if token.lexer.comment_count == 0:
+            token.lexer.pop_state()
+        else:
+            token.lexer.comment_count -= 1
+
+    # COMMENT ignored characters
+    t_COMMENT_ignore = ''
+
+    # COMMENT error handler
+    def t_COMMENT_error(self, token):
+        token.lexer.skip(1)
 
     def t_error(self, token):
         """
-        Error Handling Rule.
+        Error Handling and Reporting Rule.
         """
-        print("Illegal character {0}".format(token.value[0]))
+        print("Illegal character! Line: {0}, character: {1}".format(token.lineno, token.value[0]))
         token.lexer.skip(1)
 
     # ################# END OF LEXICAL ANALYSIS RULES DECLARATION ######################
+
+    # #################################  PUBLIC  #######################################
+
+    def build(self, **kwargs):
+        """
+        Builds the PyCoolLexer instance with lex.lex() by binding the tokens list, reserved keywords map and lexer
+        object in the current instance scope.
+        :param kwargs: config parameters map, complete list:
+            * debug: Debug mode flag.
+            * optimize: Optimize mode flag.
+            * debuglog: Debug log file path; by default lexer prints to stderr.
+            * errorlog: Error log file path; by default lexer print to stderr.
+            * outputdir: Output directory of lexing output; by default the .out file goes in the same directory.
+        :return: None
+        """
+        # Parse the parameters
+        if kwargs is None or len(kwargs) == 0:
+            debug, optimize, outputdir, debuglog, errorlog = \
+                self._debug, self._optimize, self._outputdir, self._debuglog, self._errorlog
+        else:
+            debug = kwargs.get("debug", self._debug)
+            optimize = kwargs.get("optimize", self._optimize)
+            outputdir = kwargs.get("outputdir", self._outputdir)
+            debuglog = kwargs.get("debuglog", self._debuglog)
+            errorlog = kwargs.get("errorlog", self._errorlog)
+
+        # Expose the reserved map and tokens tuple to the class scope for ply.lex
+        self.reserved = self.basic_reserved.keys()
+        self.tokens = self.tokens_collection + tuple(self.basic_reserved.values())
+
+        # Build internal ply.lex instance
+        self.lexer = lex.lex(
+            module=self, debug=debug, optimize=optimize, outputdir=outputdir, debuglog=debuglog, errorlog=errorlog)
+
+    def input(self, cool_program_source_code):
+        """
+        Run lexical analysis on a given COOL program source code string.
+        :param cool_program_source_code: COOL program source code as a string.
+        :return: None.
+        """
+        if self.lexer is None:
+            raise Exception("Lexer was not built. Try calling the build() method first, and then tokenize().")
+
+        self.lexer.input(cool_program_source_code)
+
+    def token(self):
+        """
+        Advanced the lexers tokens tape one place and returns the current token.
+        :side-effects: Modifies self.last_token.
+        :return: Token.
+        """
+        if self.lexer is None:
+            raise Exception("Lexer was not built. Try building the lexer with the build() method.")
+
+        self.last_token = self.lexer.token()
+        return self.last_token
+
+    def clone_ply_lex(self):
+        """
+        Clones the internal ply.lex instance, returns a new copy.
+        :return: ply.lex clone.
+        """
+        a_clone = self.lexer.clone()
+        return a_clone
+
+    @staticmethod
+    def test(program_source_code):
+        """
+        Given a cool program source code string try to run lexical analysis on it and return all tokens as an iterator.
+        :param program_source_code: String.
+        :return: Iterator.
+        """
+        temp_lexer = PyCoolLexer()
+        temp_lexer.input(program_source_code)
+        iter_token_stream = iter([some_token for some_token in temp_lexer])
+        del temp_lexer
+        return iter_token_stream
+
+    # ################### ITERATOR PROTOCOL ############################################
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        t = self.token()
+        if t is None:
+            raise StopIteration
+        return t
+
+    def next(self):
+        return self.__next__()
 
 
 # ----------------------------------------------------------------------
