@@ -17,18 +17,54 @@ from lexer import make_lexer
 
 class PyCoolParser(object):
     """
-    TODO
+    PyCoolParser class.
+
+    Responsible for Syntax Analysis of COOL Programs. Implements the LALR(1) parsing algorithm.
+
+    To use the parser, create an object from it and then call the parse() method passing in COOL Program(s) code as a
+    string.
+
+    PyCoolParser provides the following public APIs:
+     * build(): Builds the parser.
+     * parse(): Parses a COOL program source code passed as a string.
     """
-    def __init__(self):
+    def __init__(self, build_parser=True, debug=False, optimize=False, outputdir=None, debuglog=None, errorlog=None):
         """
-        TODO
-        :return:
+        Initializer.
+        :param debug: Debug mode flag.
+        :param optimize: Optimize mode flag.
+        :param outputdir: Output directory of parser output; by default the .out file goes in the same directory.
+        :param debuglog: Debug log file path; by default parser prints to stderr.
+        :param errorlog: Error log file path; by default parser print to stderr.
+        :param build_parser: If this is set to True the internal parser will be built right after initialization,
+         which makes it convenient for direct use. If it's set to False, then an empty parser instance will be
+         initialized and the parser object will have to be built by calling parser.build() after initialization.
+
+        Example:
+         parser = PyCoolParser(build_parser=False)
+         ...
+         parser.build()
+         parser.parse(...)
+         ...
+
+        :return: None
         """
         # Initialize self.parser and self.tokens to None
         self.tokens = None
         self.lexer = None
         self.parser = None
         self.error_list = []
+
+        # Save Flags - PRIVATE PROPERTIES
+        self._debug = debug
+        self._optimize = optimize
+        self._outputdir = outputdir
+        self._debuglog = debuglog
+        self._errorlog = errorlog
+
+        # Build parser if build_parser flag is set to True
+        if build_parser is True:
+            self.build(debug=debug, optimize=optimize, outputdir=outputdir, debuglog=debuglog, errorlog=errorlog)
 
     # ################################# PRIVATE ########################################
 
@@ -388,28 +424,30 @@ class PyCoolParser(object):
 
     def build(self, **kwargs):
         """
-        Builds the PyCoolParser instance with yaac.yaac() by binding the lexer object and it tokens list in the
+        Builds the PyCoolParser instance with yaac.yaac() by binding the lexer object and its tokens list in the
         current instance scope.
-        :param kwargs: yaac.yaac() config parameters.
+        :param kwargs: yaac.yaac() config parameters, complete list:
+            * debug: Debug mode flag.
+            * optimize: Optimize mode flag.
+            * debuglog: Debug log file path; by default parser prints to stderr.
+            * errorlog: Error log file path; by default parser print to stderr.
+            * outputdir: Output directory of parsing output; by default the .out file goes in the same directory.
         :return: None
         """
         # Build PyCoolLexer
-        # self.lexer.build(**kwargs)
-        # Expose tokens collections to this instance scope
-        # self.tokens = self.lexer.tokens
-
-        # self.tokens = tokens
-        # self.lexer = lexer
-
         self.lexer = make_lexer()
+
+        # Expose tokens collections to this instance scope
         self.tokens = self.lexer.tokens
+
+        # Build yacc parser
         self.parser = yacc.yacc(module=self, **kwargs)
 
     def parse(self, program_source_code):
         """
-        TODO
-        :param program_source_code: TODO
-        :return: TODO
+        Parses a COOL program source code passed as a string.
+        :param program_source_code: string.
+        :return: Parser output.
         """
         if self.parser is None:
             raise ValueError("Parser was not build, try building it first with the build() method.")
@@ -423,12 +461,12 @@ class PyCoolParser(object):
 # ----------------------------------------------------------------------
 
 
-def make_parser():
+def make_parser(**kwargs):
     """
     Utility function.
     :return: PyCoolParser object.
     """
-    a_parser = PyCoolParser()
+    a_parser = PyCoolParser(**kwargs)
     a_parser.build()
     return a_parser
 

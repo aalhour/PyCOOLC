@@ -13,7 +13,7 @@ import ply.lex as lex
 from ply.lex import TOKEN
 
 
-class PyCoolLexer:
+class PyCoolLexer(object):
     """
     PyCoolLexer class.
 
@@ -27,11 +27,11 @@ class PyCoolLexer:
             print(token)
 
     PyCoolLexer provides the following Public APIs:
-     * build(): Build the lexer in case it was specified upon initialization that the lexer shouldn't be built eagerly.
+     * build(): Builds the lexer.
      * input(): Run lexical analysis on a given cool program source code string.
      * token(): Advances the lexers tokens tape by 1 place and returns the current token.
      * test():  Runs lexer on a given cool program source code string and prints all tokens to stdout.
-     * clone_ply_lex(): Clones the internal ply.lex lexer instance.
+     * clone_ply_lexer(): Clones the internal PLY's lex-generated lexer instance.
 
     The lexer is built using Python's lex (ply.lex) via specifying a tokens list, reserved keywords maps and tokenization
     regex rules.
@@ -46,10 +46,10 @@ class PyCoolLexer:
         :param errorlog: Error log file path; by default lexer print to stderr.
         :param build_lexer: If this is set to True the internal lexer will be built right after initialization,
          which makes it convenient for direct use. If it's set to False, then an empty lexer instance will be
-         initialized and the lexer object will have to be built via called lexer.build() method after initialization.
+         initialized and the lexer object will have to be built by calling lexer.build() after initialization.
 
         Example:
-         lexer = PyCoolLexer(post_init_build=False)
+         lexer = PyCoolLexer(build_lexer=False)
          ...
          lexer.build()
          lexer.input(...)
@@ -254,6 +254,8 @@ class PyCoolLexer:
     # Ignore Whitespace Character Rule
     t_ignore = ' \t\r\f'
 
+    # ################# STATEFUL LEXICAL ANALYSIS ######################################
+
     # LEXER STATES
     @property
     def states(self):
@@ -262,6 +264,7 @@ class PyCoolLexer:
             ("COMMENT", "exclusive")
         )
 
+    ###
     # THE STRING STATE
     @TOKEN(r"\"")
     def t_start_string(self, token):
@@ -282,7 +285,6 @@ class PyCoolLexer:
     def t_STRING_end(self, token):
         if not token.lexer.string_backslashed:
             token.lexer.pop_state()
-            # TODO: insert checks
             token.value = token.lexer.stringbuf
             token.type = "STRING"
             return token
@@ -317,9 +319,10 @@ class PyCoolLexer:
 
     # STRING error handler
     def t_STRING_error(self, token):
-        print("Illegal character '%s'" % token.value[0])
+        print("Illegal character! Line: {0}, character: {1}".format(token.lineno, token.value[0]))
         token.lexer.skip(1)
 
+    ###
     # THE COMMENT STATE
     @TOKEN(r"\(\*")
     def t_start_comment(self, token):
@@ -409,10 +412,10 @@ class PyCoolLexer:
         self.last_token = self.lexer.token()
         return self.last_token
 
-    def clone_ply_lex(self):
+    def clone_ply_lexer(self):
         """
-        Clones the internal ply.lex instance, returns a new copy.
-        :return: ply.lex clone.
+        Clones the internal PLY's lex-generated lexer instance. Returns a new copy.
+        :return: PLY's lex-generated lexer clone.
         """
         a_clone = self.lexer.clone()
         return a_clone
@@ -450,12 +453,12 @@ class PyCoolLexer:
 #                Usage: ./lexer.py cool_program.cl
 # ----------------------------------------------------------------------
 
-def make_lexer():
+def make_lexer(**kwargs):
     """
     Utility function.
     :return: PyCoolLexer object.
     """
-    a_lexer = PyCoolLexer()
+    a_lexer = PyCoolLexer(**kwargs)
     a_lexer.build()
     return a_lexer
 
