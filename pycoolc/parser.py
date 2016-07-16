@@ -3,7 +3,7 @@
 # -----------------------------------------------------------------------------
 # parser.py
 #
-# Author:       Ahmad Alhour (github.com/aalhour; aalhour.com).
+# Author:       Ahmad Alhour (aalhour.com).
 # Date:         May 26rd, 2016.
 # Description:  The Parser module. Implements syntax analysis and parsing rules
 #               of the COOL CFG.
@@ -455,10 +455,10 @@ class PyCoolParser(object):
         return self.parser.parse(program_source_code)
 
 
-# ----------------------------------------------------------------------
-#                Parser as a Standalone Python Program
-#                Usage: ./parser.py cool_program.cl
-# ----------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+#                     Parser as a Standalone Python Program
+#                     Usage: ./parser.py cool_program.cl
+# -----------------------------------------------------------------------------
 
 
 def make_parser(**kwargs):

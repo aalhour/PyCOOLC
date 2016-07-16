@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # ast.py
 #
-# Author:       Ahmad Alhour (github.com/aalhour; aalhour.com).
+# Author:       Ahmad Alhour (aalhour.com).
 # Date:         May 26rd, 2016.
 # Description:  The Abstract Syntax Tree module. Provides classes for managing
 #               the parse tree.
@@ -30,26 +30,6 @@ class BaseNode:
 
     def __str__(self):
         return str(self.to_readable())
-
-
-class Constant(BaseNode):
-    def __init__(self):
-        super(Constant, self).__init__()
-
-
-class Expr(BaseNode):
-    def __init__(self):
-        super(Expr, self).__init__()
-
-
-class UnaryOperation(Expr):
-    def __init__(self):
-        super(UnaryOperation, self).__init__()
-
-
-class BinaryOperation(Expr):
-    def __init__(self):
-        super(BinaryOperation, self).__init__()
 
 
 # ############################## PROGRAM, TYPE AND OBJECT ##############################
@@ -156,6 +136,11 @@ class Self(Object):
 # ############################## CONSTANTS ##############################
 
 
+class Constant(BaseNode):
+    def __init__(self):
+        super(Constant, self).__init__()
+
+
 class Integer(Constant):
     def __init__(self, content):
         super(Integer, self).__init__()
@@ -193,6 +178,11 @@ class Boolean(Constant):
 
 
 # ############################## EXPRESSIONS ##############################
+
+
+class Expr(BaseNode):
+    def __init__(self):
+        super(Expr, self).__init__()
 
 
 class NewObject(Expr):
@@ -349,6 +339,11 @@ class Action(BaseNode):
 # ############################## UNARY OPERATIONS ##################################
 
 
+class UnaryOperation(Expr):
+    def __init__(self):
+        super(UnaryOperation, self).__init__()
+
+
 class IntegerComplement(UnaryOperation):
     def __init__(self, integer_expr):
         super(IntegerComplement, self).__init__()
@@ -377,6 +372,10 @@ class BooleanComplement(UnaryOperation):
 
 # ############################## BINARY OPERATIONS ##################################
 
+
+class BinaryOperation(Expr):
+    def __init__(self):
+        super(BinaryOperation, self).__init__()
 
 class Addition(BinaryOperation):
     def __init__(self, first, second):

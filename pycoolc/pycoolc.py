@@ -1,31 +1,57 @@
 #!/usr/bin/env python3
 
+# -----------------------------------------------------------------------------
+# parser.py
+#
+# Author:       Ahmad Alhour (aalhour.com).
+# Date:         TODO
+# Description:  The Compiler driver. Drives the whole compilation process.
+# -----------------------------------------------------------------------------
+
+
 import sys
-from parser import PyCoolParser
+from lexer import make_lexer
+from parser import make_parser
+from semanter import make_semanter
+
+
+def print_usage():
+    print("Usage: ./pycoolc.py program.cl [program2.cl program3.cl ...]")
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        print("Usage: ./parser.py program.cl")
-        exit()
-    elif not str(sys.argv[1]).endswith(".cl"):
-        print("Cool program source code files must end with .cl extension.")
-        print("Usage: ./parser.py program.cl")
-        exit()
+    programs = []
+    cool_program_code = ""
 
-    input_file = sys.argv[1]
-    with open(input_file, encoding="utf-8") as file:
-        cool_program_code = file.read()
+    if len(sys.argv) < 2:
+        print_usage()
+        exit()
+    else:
+        for program in sys.argv[1:]:
+            if not str(program).endswith(".cl"):
+                print("Cool program files must end with a \`.cl\` extension.")
+                print_usage()
+                exit()
+            else:
+                programs.append(program)
 
-    parser = PyCoolParser()
-    parser.build()
+    for program in programs:
+        input_file = sys.argv[1]
+        with open(input_file, encoding="utf-8") as file:
+            cool_program_code += file.read()
 
     # Lexing output
-    parser.lexer.input(cool_program_code)
-    for token in parser.lexer:
+    lexer = make_lexer()
+    lexer.input(cool_program_code)
+    for token in lexer:
         print(token)
 
     # Parsing output
+    parser = make_parser()
     result = parser.parse(cool_program_code)
     print(result)
+
+    # Semantic Analysis output
+    semanter = make_semanter()
+    semanter.check(cool_program_code)
 

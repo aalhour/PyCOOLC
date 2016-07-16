@@ -3,7 +3,7 @@
 # -----------------------------------------------------------------------------
 # lexer.py
 #
-# Author:       Ahmad Alhour (github.com/aalhour; aalhour.com).
+# Author:       Ahmad Alhour (aalhour.com).
 # Date:         May 23rd, 2016.
 # Description:  The Lexer module. Implements lexical analysis of COOL programs.
 # -----------------------------------------------------------------------------
@@ -448,10 +448,10 @@ class PyCoolLexer(object):
         return self.__next__()
 
 
-# ----------------------------------------------------------------------
-#                Lexer as a Standalone Python Program
-#                Usage: ./lexer.py cool_program.cl
-# ----------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+#                     Lexer as a Standalone Python Program
+#                     Usage: ./lexer.py cool_program.cl
+# -----------------------------------------------------------------------------
 
 def make_lexer(**kwargs):
     """
