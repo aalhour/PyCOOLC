@@ -23,20 +23,24 @@ A formal treatment of **COOL**'s Context-Free Grammar can be found at [/docs/CFG
 
 ## OVERVIEW
 
+### Architecture:
+
 PyCOOLC follows classical compiler architecture, it consists mainly of the infamous two logical components: Frontend and Backend.
 
 The flow of compilation goes from Frontend to Backend, passing through the stages in every component.
 
 Compiler Frontend consists of the following three stages:
  
- 1. Lexical Analysis (see: [`lexer.py`](/pycoolc/lexer.py)): Tokenization via Regular Expressions.
- 2. Syntax Analysis (see: [`parser.py`](/pycoolc/parser.py)): an LALR(1) Parsing Algorithm.
- 3. Semantic Analysis & Type Checking (see: [`semanter.py`](/pycoolc/semanter.py)).
+ 1. Lexical Analysis (see: [`lexer.py`](/pycoolc/lexer.py)): regex-based tokenizer.
+ 2. Syntax Analysis (see: [`parser.py`](/pycoolc/parser.py)): an LALR(1) parser.
+ 3. Semantic Analysis (see: [`semanter.py`](/pycoolc/semanter.py)).
 
 Compiler Backend consists of the following two stages:
 
  * Code Optimization.
- * Code Generation: MIPS 32-bit Architecture.
+ * Code Generation: MIPS 32-bit assembly code. Simulates an SRSM (Single-Register Stack Machine).
+
+### Example Scenario:
 
 A typical compilation scenario would start by the user calling the compiler driver (see: [`pycoolc.py`](/pycoolc/pycoolc.py)) passing to it one or more COOL program files. The compiler starts off by parsing the source code of all program files, lexical analysis, as a stage, is driven by the parser. The parser returns an Abstract Syntax Tree (see: [`ast.py`](/pycoolc/ast.py)) representation of the program(s) if parsing finished successfully, otherwise the compilation process is terminated and errors reported back the user. The compiler driver then initiates the Semantic Analysis stage, out of which the AST representation will be further modified. If any errors where found during this stage, the compilation process will be terminated with all errors reported back. The driver goes on with compilation process, entering the Code Optimization stage where the AST is optimized and dead code is eliminated, after which the Code Generation stage follows, emitting executable MIPS 32-bit assembly code.
 
