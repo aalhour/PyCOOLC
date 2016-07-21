@@ -11,8 +11,13 @@ A formal treatment of **COOL**'s Context-Free Grammar can be found at [/docs/CFG
 ## CONTENTS
 
   * [Overview](#overview).
+    + [Architecture](#architecture).
+    + [Example Scenario](#example-scenario).
   * [Development Status](#dev-status).
-  * [Requirements](#requirements).
+  * [Installation](#installation).
+    + [Requirements](#requirements).
+    + [Installing from Source](#installing-from-source).
+    + [Installing from PyPI](#installing-from-pypi).
   * [Usage](#usage).
     + [Standalone](#standalone).
     + [Python Module](#python-module).
@@ -48,30 +53,53 @@ A typical compilation scenario would start by the user calling the compiler driv
 
 Each Compiler stage and Runtime feature is designed as a separate component that can be used standalone or as a Python module, the following is the development status of each one:
 
-| Compiler Stage     | Python Module                         | Issue                             | Status          |
-|:-------------------|:--------------------------------------|:----------------------------------|:----------------|
-| Lexical Analysis   | [`lexer.py`](/pycoolc/lexer.py)       | [@issue #2](https://git.io/vr1gx) | :white_check_mark: **done**        |
-| Parsing            | [`parser.py`](/pycoolc/parser.py)     | [@issue #3](https://git.io/vr12k) | :white_check_mark: **done**        |
-| Semantic Analysis  | [`semanter.py`](/pycoolc/semanter.py) | [@issue #4](https://git.io/vr12O) | *in progress*   |
-| Optimization       | -                                     | [@issue #5](https://git.io/vr1Vd) | -               | 
-| Code Generation    | -                                     | [@issue #6](https://git.io/vr1VA) | -               |
-| Garbage Collection | -                                     | [@issue #8](https://git.io/vof6z) | -               |
+| Compiler Stage     | Python Module                         | Issue                             | Status                      |
+|:-------------------|:--------------------------------------|:----------------------------------|:----------------------------|
+| Lexical Analysis   | [`lexer.py`](/pycoolc/lexer.py)       | [@issue #2](https://git.io/vr1gx) | :white_check_mark: **done** |
+| Parsing            | [`parser.py`](/pycoolc/parser.py)     | [@issue #3](https://git.io/vr12k) | :white_check_mark: **done** |
+| Semantic Analysis  | [`semanter.py`](/pycoolc/semanter.py) | [@issue #4](https://git.io/vr12O) | *in progress*               |
+| Optimization       | -                                     | [@issue #5](https://git.io/vr1Vd) | -                           | 
+| Code Generation    | -                                     | [@issue #6](https://git.io/vr1VA) | -                           |
+| Garbage Collection | -                                     | [@issue #8](https://git.io/vof6z) | -                           |
 
 
-## REQUIREMENTS
+## INSTALLATION
 
- * Python >= 3.5.
+### Requirements
+
+ * Python >= 3.5
  * SPIM - MIPS 32-bit Assembly Simulator: [@Homepage](http://spimsimulator.sourceforge.net), [@SourceForge](https://sourceforge.net/projects/spimsimulator/files/).
  * All Python packages listed in: [`requirements.txt`](requirements.txt).
+
+### Installing from Source
+
+```
+python3 setup.py install
+```
+
+### Installing from PyPI
+
+```
+pip3 install pycoolc
+```
 
 
 ## USAGE
 
 ### Standalone
 
+Compile the COOL .cl program file:
+
 ```bash
-./pycoolc.py hello_world.cl
+pycoolc hello_world.cl
 ```
+
+Run the compiled program (MIPS machine code) with the SPIM simulator:
+
+```bash
+spim hello_world.s
+```
+
 
 ### Python Module
 
@@ -84,9 +112,9 @@ lexer.input(a_cool_program_source_code_str)
 for token in lexer:
     print(token)
     
- parser = make_parser()
- parsing_result = parser.parse(a_cool_program_source_code_str)
- print(parsing_result)
+parser = make_parser()
+parsing_result = parser.parse(a_cool_program_source_code_str)
+print(parsing_result)
 ```
 
 ## LANGUAGE FEATURES
