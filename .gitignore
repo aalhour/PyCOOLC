@@ -7,4 +7,6 @@ pycoolc/__pycache__/
 *.egg
 *.egg-info
 *.out
+lextab.py
 parsetab.py
+yacctab.py

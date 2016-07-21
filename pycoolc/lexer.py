@@ -36,7 +36,14 @@ class PyCoolLexer(object):
     The lexer is built using Python's lex (ply.lex) via specifying a tokens list, reserved keywords maps and tokenization
     regex rules.
     """
-    def __init__(self, build_lexer=True, debug=False, optimize=False, outputdir=None, debuglog=None, errorlog=None):
+    def __init__(self,
+                 build_lexer=True,
+                 debug=False,
+                 lextab="pycoolc.lextab",
+                 optimize=True,
+                 outputdir="",
+                 debuglog=None,
+                 errorlog=None):
         """
         Initializer.
         :param debug: Debug mode flag.
@@ -64,6 +71,7 @@ class PyCoolLexer(object):
 
         # Save Flags - PRIVATE PROPERTIES
         self._debug = debug
+        self._lextab = lextab
         self._optimize = optimize
         self._outputdir = outputdir
         self._debuglog = debuglog
@@ -71,7 +79,8 @@ class PyCoolLexer(object):
 
         # Build lexer if build_lexer flag is set to True
         if build_lexer is True:
-            self.build(debug=debug, optimize=optimize, outputdir=outputdir, debuglog=debuglog, errorlog=errorlog)
+            self.build(debug=debug, lextab=lextab, optimize=optimize, outputdir=outputdir, debuglog=debuglog,
+                       errorlog=errorlog)
 
     # #################################  READONLY  #####################################
 
@@ -372,10 +381,11 @@ class PyCoolLexer(object):
         """
         # Parse the parameters
         if kwargs is None or len(kwargs) == 0:
-            debug, optimize, outputdir, debuglog, errorlog = \
-                self._debug, self._optimize, self._outputdir, self._debuglog, self._errorlog
+            debug, lextab, optimize, outputdir, debuglog, errorlog = \
+                self._debug, self._lextab, self._optimize, self._outputdir, self._debuglog, self._errorlog
         else:
             debug = kwargs.get("debug", self._debug)
+            lextab = kwargs.get("lextab", self._lextab)
             optimize = kwargs.get("optimize", self._optimize)
             outputdir = kwargs.get("outputdir", self._outputdir)
             debuglog = kwargs.get("debuglog", self._debuglog)
@@ -386,8 +396,8 @@ class PyCoolLexer(object):
         self.tokens = self.tokens_collection + tuple(self.basic_reserved.values())
 
         # Build internal ply.lex instance
-        self.lexer = lex.lex(
-            module=self, debug=debug, optimize=optimize, outputdir=outputdir, debuglog=debuglog, errorlog=errorlog)
+        self.lexer = lex.lex(module=self, lextab=lextab, debug=debug, optimize=optimize, outputdir=outputdir,
+                             debuglog=debuglog, errorlog=errorlog)
 
     def input(self, cool_program_source_code):
         """

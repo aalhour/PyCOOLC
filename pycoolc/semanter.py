@@ -10,8 +10,8 @@
 # -----------------------------------------------------------------------------
 
 import sys
-import ast as AST
-from parser import make_parser
+import pycoolc.ast as AST
+from pycoolc.parser import make_parser
 
 
 # -----------------------------------------------------------------------------

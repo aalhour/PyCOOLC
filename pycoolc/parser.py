@@ -11,8 +11,8 @@
 
 import sys
 import ply.yacc as yacc
-import ast as AST
-from lexer import make_lexer
+import pycoolc.ast as AST
+from pycoolc.lexer import make_lexer
 
 
 class PyCoolParser(object):
@@ -28,7 +28,15 @@ class PyCoolParser(object):
      * build(): Builds the parser.
      * parse(): Parses a COOL program source code passed as a string.
     """
-    def __init__(self, build_parser=True, debug=False, optimize=False, outputdir=None, debuglog=None, errorlog=None):
+    def __init__(self,
+                 build_parser=True,
+                 debug=False,
+                 write_tables=True,
+                 optimize=True,
+                 outputdir="",
+                 yacctab="pycoolc.yacctab",
+                 debuglog=None,
+                 errorlog=None):
         """
         Initializer.
         :param debug: Debug mode flag.
@@ -57,14 +65,17 @@ class PyCoolParser(object):
 
         # Save Flags - PRIVATE PROPERTIES
         self._debug = debug
+        self._write_tables = write_tables
         self._optimize = optimize
         self._outputdir = outputdir
+        self._yacctab = yacctab
         self._debuglog = debuglog
         self._errorlog = errorlog
 
         # Build parser if build_parser flag is set to True
         if build_parser is True:
-            self.build(debug=debug, optimize=optimize, outputdir=outputdir, debuglog=debuglog, errorlog=errorlog)
+            self.build(debug=debug, write_tables=write_tables, optimize=optimize, outputdir=outputdir,
+                       yacctab=yacctab, debuglog=debuglog, errorlog=errorlog)
 
     # ################################# PRIVATE ########################################
 
@@ -434,14 +445,30 @@ class PyCoolParser(object):
             * outputdir: Output directory of parsing output; by default the .out file goes in the same directory.
         :return: None
         """
+        # Parse the parameters
+        if kwargs is None or len(kwargs) == 0:
+            debug, write_tables, optimize, outputdir, yacctab, debuglog, errorlog = \
+                self._debug, self._write_tables, self._optimize, self._outputdir, self._yacctab, self._debuglog, \
+                self._errorlog
+        else:
+            debug = kwargs.get("debug", self._debug)
+            write_tables = kwargs.get("write_tables", self._write_tables)
+            optimize = kwargs.get("optimize", self._optimize)
+            outputdir = kwargs.get("outputdir", self._outputdir)
+            yacctab = kwargs.get("yacctab", self._yacctab)
+            debuglog = kwargs.get("debuglog", self._debuglog)
+            errorlog = kwargs.get("errorlog", self._errorlog)
+
         # Build PyCoolLexer
-        self.lexer = make_lexer()
+        self.lexer = make_lexer(debug=debug, optimize=optimize, outputdir=outputdir, debuglog=debuglog,
+                                errorlog=errorlog)
 
         # Expose tokens collections to this instance scope
         self.tokens = self.lexer.tokens
 
         # Build yacc parser
-        self.parser = yacc.yacc(module=self, **kwargs)
+        self.parser = yacc.yacc(module=self, write_tables=write_tables, debug=debug, optimize=optimize,
+                                outputdir=outputdir, tabmodule=yacctab, debuglog=debuglog, errorlog=errorlog)
 
     def parse(self, program_source_code):
         """
