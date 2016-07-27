@@ -43,7 +43,7 @@ Compiler Frontend consists of the following three stages:
 Compiler Backend consists of the following two stages:
 
  * Code Optimization.
- * Code Generation: MIPS 32-bit assembly code. Simulates an SRSM (Single-Register Stack Machine).
+ * Code Generation: MIPS 32-bit assembly code. Models an SRSM (Single-Register Stack Machine).
 
 ### Example Scenario:
 
@@ -53,12 +53,12 @@ A typical compilation scenario would start by the user calling the compiler driv
 
 Each Compiler stage and Runtime feature is designed as a separate component that can be used standalone or as a Python module, the following is the development status of each one:
 
-| Compiler Stage     | Python Module                         | Issue                             | Status                      |
+| Compiler Stage     | Python Module                         | Issue(s)                          | Status                      |
 |:-------------------|:--------------------------------------|:----------------------------------|:----------------------------|
 | Lexical Analysis   | [`lexer.py`](/pycoolc/lexer.py)       | [@issue #2](https://git.io/vr1gx) | :white_check_mark: **done** |
 | Parsing            | [`parser.py`](/pycoolc/parser.py)     | [@issue #3](https://git.io/vr12k) | :white_check_mark: **done** |
 | Semantic Analysis  | [`semanter.py`](/pycoolc/semanter.py) | [@issue #4](https://git.io/vr12O) | *in progress*               |
-| Optimization       | -                                     | [@issue #5](https://git.io/vr1Vd) | -                           | 
+| Optimization       | -                                     | @issues: [#5](https://git.io/vr1Vd), [#11](https://git.io/vKHuH) | - | 
 | Code Generation    | -                                     | [@issue #6](https://git.io/vr1VA) | -                           |
 | Garbage Collection | -                                     | [@issue #8](https://git.io/vof6z) | -                           |
 
