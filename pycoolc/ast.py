@@ -11,7 +11,7 @@
 # ############################## BASE AST NODES CLASSES ##############################
 
 
-class BaseNode:
+class AST:
     def __init__(self):
         pass
 
@@ -35,7 +35,7 @@ class BaseNode:
 # ############################## PROGRAM, TYPE AND OBJECT ##############################
 
 
-class Program(BaseNode):
+class Program(AST):
     def __init__(self, classes):
         super(Program, self).__init__()
         self.classes = classes
@@ -47,7 +47,7 @@ class Program(BaseNode):
         return "{}(classes={})".format(self._clsname, self.classes)
 
 
-class Class(BaseNode):
+class Class(AST):
     def __init__(self, name, parent, features):
         super(Class, self).__init__()
         self.name = name
@@ -61,7 +61,7 @@ class Class(BaseNode):
         return "{}(name='{}', parent={}, features={})".format(self._clsname, self.name, self.parent, self.features)
 
 
-class ClassFeature(BaseNode):
+class ClassFeature(AST):
     def __init__(self):
         super(ClassFeature, self).__init__()
 
@@ -110,7 +110,7 @@ class FormalParameter(ClassFeature):
         return "{}(name='{}', param_type={})".format(self._clsname, self.name, self.param_type)
 
 
-class Object(BaseNode):
+class Object(AST):
     def __init__(self, name):
         super(Object, self).__init__()
         self.name = name
@@ -136,7 +136,7 @@ class Self(Object):
 # ############################## CONSTANTS ##############################
 
 
-class Constant(BaseNode):
+class Constant(AST):
     def __init__(self):
         super(Constant, self).__init__()
 
@@ -180,7 +180,7 @@ class Boolean(Constant):
 # ############################## EXPRESSIONS ##############################
 
 
-class Expr(BaseNode):
+class Expr(AST):
     def __init__(self):
         super(Expr, self).__init__()
 
@@ -322,7 +322,7 @@ class Case(Expr):
         return "{}(expr={}, actions={})".format(self._clsname, self.expr, self.actions)
 
 
-class Action(BaseNode):
+class Action(AST):
     def __init__(self, name, action_type, body):
         super(Action, self).__init__()
         self.name = name
