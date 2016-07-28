@@ -4,7 +4,7 @@ A (work in progress) compiler for **[COOL](https://en.wikipedia.org/wiki/Cool_(p
 
 **COOL** is a small statically-typed object-oriented language that is type-safe and garbage collected. It has mainly 3 primitive data types: Integers, Strings and Booleans (`true`, `false`). It supports conditional and iterative control flow in addition to pattern matching. Everything in COOL is an expression! Many example COOL programs can be found under the [/examples](/examples/README.md) directory.
 
-A formal treatment of **COOL**'s Context-Free Grammar can be found at [/docs/CFG.md](/docs/CFG.md).
+A BNF-based specification of **COOL**'s Context-Free Grammar can be found at [/docs/Grammar.md](/docs/Grammar.md).
 
 ------------------------------
 
@@ -53,14 +53,14 @@ A typical compilation scenario would start by the user calling the compiler driv
 
 Each Compiler stage and Runtime feature is designed as a separate component that can be used standalone or as a Python module, the following is the development status of each one:
 
-| Compiler Stage     | Python Module                         | Issue(s)                          | Status                      |
-|:-------------------|:--------------------------------------|:----------------------------------|:----------------------------|
-| Lexical Analysis   | [`lexer.py`](/pycoolc/lexer.py)       | [@issue #2](https://git.io/vr1gx) | :white_check_mark: **done** |
-| Parsing            | [`parser.py`](/pycoolc/parser.py)     | [@issue #3](https://git.io/vr12k) | :white_check_mark: **done** |
-| Semantic Analysis  | [`semanter.py`](/pycoolc/semanter.py) | [@issue #4](https://git.io/vr12O) | *in progress*               |
-| Optimization       | -                                     | @issues: [#5](https://git.io/vr1Vd), [#11](https://git.io/vKHuH) | - | 
-| Code Generation    | -                                     | [@issue #6](https://git.io/vr1VA) | -                           |
-| Garbage Collection | -                                     | [@issue #8](https://git.io/vof6z) | -                           |
+| Compiler Stage     | Python Module                         | Issue(s)                                                | Status                      |
+|:-------------------|:--------------------------------------|:--------------------------------------------------------|:----------------------------|
+| Lexical Analysis   | [`lexer.py`](/pycoolc/lexer.py)       | [#2](https://git.io/vr1gx)                              | :white_check_mark: **done** |
+| Parsing            | [`parser.py`](/pycoolc/parser.py)     | [#3](https://git.io/vr12k)                              | :white_check_mark: **done** |
+| Semantic Analysis  | [`semanter.py`](/pycoolc/semanter.py) | [#4](https://git.io/vr12O)                              | *in progress*               |
+| Optimization       | -                                     | [#5](https://git.io/vr1Vd), [#11](https://git.io/vKHuH) | -                           | 
+| Code Generation    | -                                     | [#6](https://git.io/vr1VA)                              | -                           |
+| Garbage Collection | -                                     | [#8](https://git.io/vof6z)                              | -                           |
 
 
 ## INSTALLATION
@@ -88,16 +88,28 @@ pip3 install pycoolc
 
 ### Standalone
 
-Compile the COOL .cl program file:
+Help and usage information:
+
+```bash
+pycoolc --help
+```
+
+Compile a cool program:
 
 ```bash
 pycoolc hello_world.cl
 ```
 
+Specify a custom name for the compiled output program:
+
+```bash
+pycoolc hello_world.cl --outfile helloWorldAsm.s
+```
+
 Run the compiled program (MIPS machine code) with the SPIM simulator:
 
 ```bash
-spim hello_world.s
+spim helloWorldAsm.s
 ```
 
 
@@ -127,12 +139,13 @@ print(parsing_result)
     + Class Declaration.
     + Object Instantiation.
     + Inheritance.
-    + Class Features and Methods.
+    + Class Attributes.
+    + Class Methods.
   * Strong Static Typing.
   * Pattern Matching.
   * Control Flow:
     + Switch Case.
-    + If/Then/Else Statements.
+    + If/Then/Else.
     + While Loops.
   * Automatic Memory Management:
     + Garbage Collection.
