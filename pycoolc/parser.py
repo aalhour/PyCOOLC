@@ -4,7 +4,7 @@
 # parser.py
 #
 # Author:       Ahmad Alhour (aalhour.com).
-# Date:         May 26rd, 2016.
+# Date:         July 13th, 2016.
 # Description:  The Parser module. Implements syntax analysis and parsing rules
 #               of the COOL CFG.
 # -----------------------------------------------------------------------------
