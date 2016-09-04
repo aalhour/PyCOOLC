@@ -14,7 +14,7 @@ import argparse
 # compiler stages
 from pycoolc.lexer import make_lexer
 from pycoolc.parser import make_parser
-from pycoolc.semanter import make_semanter
+from pycoolc.semanalyser import make_semantic_analyser
 
 # compiler utils
 from pycoolc.utils import print_readable_ast
@@ -31,7 +31,6 @@ def create_arg_parser():
         "cool_program",
         type=str, nargs="+",
         help="One or more cool program source code files ending with *.cl extension; space separated.")
-        
 
     # Output file argument
     arg_parser.add_argument(
@@ -66,37 +65,49 @@ def create_arg_parser():
     return arg_parser
 
 
-def lexical_analysis(program):
+def lexical_analysis(program, print_results=True):
     """
     TODO
     :param program: TODO
+    :param print_results: TODO
     :return: TODO
     """
     lexer = make_lexer()
     lexer.input(program)
-    for token in lexer:
-        print(token)
+    result = []
+    if print_results:
+        for token in lexer:
+            result.append(token)
+            print(token)
+    return result
 
 
-def syntax_analysis(program):
+def syntax_analysis(program, print_results=True):
     """
     TODO
     :param program: TODO
+    :param print_results: TODO
     :return: TODO
     """
     parser = make_parser()
     result = parser.parse(program)
-    print_readable_ast(result)
+    if print_results:
+        print_readable_ast(result)
+    return result
 
 
-def semantic_analysis(program):
+def semantic_analysis(program, print_results=True):
     """
     TODO
     :param program: TODO
+    :param print_results: TODO
     :return: TODO
     """
-    semanter = make_semanter()
-    semanter.check(program)
+    semanter = make_semantic_analyser()
+    checked_program = semanter.check(program)
+    if print_results:
+        print_readable_ast(checked_program)
+    return checked_program
 
 
 def main():
@@ -108,9 +119,6 @@ def main():
 
     # Parse command line arguments.
     args = arg_parser.parse_args()
-    tokens_were_requested = args.tokens
-    ast_was_requested = args.ast
-    semantics_were_requested = args.semantics
     programs = args.cool_program
 
     # Initialize the master program source code string.
@@ -149,7 +157,7 @@ def main():
     if args.semantics:
         print("{bar}\r\n# Running Semantic Analysis...\r\n{bar}".format(
             bar="# ============================"))
-        semantic_analysis(cool_program_code)
+        semantic_analysis(syntax_analysis(cool_program_code, False))
 
 
 if __name__ == "__main__":
