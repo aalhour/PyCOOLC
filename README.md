@@ -1,10 +1,11 @@
 ![PyCOOLC](misc/pycoolc_logo.png)
 
-An (work in progress) [AOT](https://en.wikipedia.org/wiki/Ahead-of-time_compilation) compiler for **[COOL](https://en.wikipedia.org/wiki/Cool_(programming_language))** (**C**lassroom **O**bject **O**riented **L**anguage), targeting the MIPS 32-bit Architecture and written entirely in Python 3.
+An [AOT](https://en.wikipedia.org/wiki/Ahead-of-time_compilation) compiler for **[COOL](https://en.wikipedia.org/wiki/Cool_(programming_language))** (**C**lassroom **O**bject **O**riented **L**anguage), targeting the MIPS 32-bit Architecture and written entirely in Python 3.
 
 **COOL** is a small statically-typed object-oriented language that is type-safe and garbage collected. It has mainly 3 primitive data types: Integers, Strings and Booleans (`true`, `false`). It supports conditional and iterative control flow in addition to pattern matching. Everything in COOL is an expression! Many example COOL programs can be found under the [/examples](/examples/README.md) directory.
 
 A BNF-based specification of **COOL**'s Context-Free Grammar can be found at [/docs/Grammar.md](/docs/Grammar.md).
+
 
 ------------------------------
 
@@ -22,9 +23,11 @@ A BNF-based specification of **COOL**'s Context-Free Grammar can be found at [/d
     + [Standalone](#standalone).
     + [Python Module](#python-module).
   * [Language Features](#language-features).
+  * [Literature](#literature).
   * [License](#license)
 
 ------------------------------
+
 
 ## OVERVIEW
 
@@ -36,18 +39,21 @@ The flow of compilation goes from Frontend to Backend, passing through the stage
 
 Compiler Frontend consists of the following three stages:
  
- 1. Lexical Analysis (see: [`lexer.py`](/pycoolc/lexer.py)): regex-based tokenizer.
- 2. Syntax Analysis (see: [`parser.py`](/pycoolc/parser.py)): an LALR(1) parser.
- 3. Semantic Analysis (see: [`semanter.py`](/pycoolc/semanter.py)).
+  1. Lexical Analysis (see: [`lexer.py`](/pycoolc/lexer.py)): regex-based tokenizer.
+  2. Syntax Analysis (see: [`parser.py`](/pycoolc/parser.py)): an LALR(1) parser.
+  3. Semantic Analysis (see: [`semanalyser.py`](/pycoolc/semanalyser.py)).
 
 Compiler Backend consists of the following two stages:
 
- * Code Optimization.
- * Code Generation: MIPS 32-bit assembly code. Models an SRSM (Single-Register Stack Machine).
+  * Code Optimization.
+  * Code Generation:
+    + Targets the MIPS 32-bit architecture.
+    + Models an SRSM (Single-Register Stack Machine).
 
 ### Example Scenario:
 
 A typical compilation scenario would start by the user calling the compiler driver (see: [`pycoolc.py`](/pycoolc/pycoolc.py)) passing to it one or more COOL program files. The compiler starts off by parsing the source code of all program files, lexical analysis, as a stage, is driven by the parser. The parser returns an Abstract Syntax Tree (see: [`ast.py`](/pycoolc/ast.py)) representation of the program(s) if parsing finished successfully, otherwise the compilation process is terminated and errors reported back the user. The compiler driver then initiates the Semantic Analysis stage, out of which the AST representation will be further modified. If any errors where found during this stage, the compilation process will be terminated with all errors reported back. The driver goes on with compilation process, entering the Code Optimization stage where the AST is optimized and dead code is eliminated, after which the Code Generation stage follows, emitting executable MIPS 32-bit assembly code.
+
 
 ## DEV. STATUS
 
@@ -57,7 +63,7 @@ Each Compiler stage and Runtime feature is designed as a separate component that
 |:-------------------|:--------------------------------------|:--------------------------------------------------------|:----------------------------|
 | Lexical Analysis   | [`lexer.py`](/pycoolc/lexer.py)       | [#2](https://git.io/vr1gx)                              | :white_check_mark: **done** |
 | Parsing            | [`parser.py`](/pycoolc/parser.py)     | [#3](https://git.io/vr12k)                              | :white_check_mark: **done** |
-| Semantic Analysis  | [`semanter.py`](/pycoolc/semanter.py) | [#4](https://git.io/vr12O)                              | *in progress*               |
+| Semantic Analysis  | [`semanalyser.py`](/pycoolc/semanalyser.py) | [#4](https://git.io/vr12O)                        | *in progress*               |
 | Optimization       | -                                     | [#5](https://git.io/vr1Vd), [#11](https://git.io/vKHuH) | -                           | 
 | Code Generation    | -                                     | [#6](https://git.io/vr1VA)                              | -                           |
 | Garbage Collection | -                                     | [#8](https://git.io/vof6z)                              | -                           |
@@ -79,9 +85,7 @@ python3 setup.py install
 
 ### Installing from PyPI
 
-```
-pip3 install pycoolc
-```
+_Coming soon..._
 
 
 ## USAGE
@@ -129,6 +133,7 @@ parsing_result = parser.parse(a_cool_program_source_code_str)
 print(parsing_result)
 ```
 
+
 ## LANGUAGE FEATURES
 
   * Primitive Data Types:
@@ -149,6 +154,14 @@ print(parsing_result)
     + While Loops.
   * Automatic Memory Management:
     + Garbage Collection.
+
+
+## LITERATURE
+
+  * [Engineering a Compiler, Cooper and Torczon](https://www.amazon.com/dp/012088478X).
+  * Modern Compiler Implementation in ML, Appel - [www](https://www.cs.princeton.edu/~appel/modern/ml/), [Amazon](https://www.amazon.com/dp/0521607647).
+  * Stanford's Compiler Theory Course - [www12](https://web.stanford.edu/class/archive/cs/cs143/cs143.1128/), [www16](http://web.stanford.edu/class/cs143/), [YouTube](https://www.youtube.com/playlist?list=PL1idwzuAUHH7udfTqaI1f2twHwJZx_Sx3).
+
 
 ## LICENSE
 
