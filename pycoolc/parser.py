@@ -9,7 +9,6 @@
 #               of the COOL CFG.
 # -----------------------------------------------------------------------------
 
-import sys
 import ply.yacc as yacc
 import pycoolc.ast as AST
 from pycoolc.lexer import make_lexer
@@ -470,7 +469,7 @@ class PyCoolParser(object):
         self.parser = yacc.yacc(module=self, write_tables=write_tables, debug=debug, optimize=optimize,
                                 outputdir=outputdir, tabmodule=yacctab, debuglog=debuglog, errorlog=errorlog)
 
-    def parse(self, program_source_code):
+    def parse(self, program_source_code: str) -> AST.Program:
         """
         Parses a COOL program source code passed as a string.
         :param program_source_code: string.
@@ -483,12 +482,14 @@ class PyCoolParser(object):
 
 
 # -----------------------------------------------------------------------------
+#
 #                     Parser as a Standalone Python Program
 #                     Usage: ./parser.py cool_program.cl
+#
 # -----------------------------------------------------------------------------
 
 
-def make_parser(**kwargs):
+def make_parser(**kwargs) -> PyCoolParser:
     """
     Utility function.
     :return: PyCoolParser object.
@@ -499,6 +500,8 @@ def make_parser(**kwargs):
 
 
 if __name__ == '__main__':
+    import sys
+
     parser = make_parser()
 
     if len(sys.argv) > 1:
@@ -525,3 +528,4 @@ if __name__ == '__main__':
             result = parser.parse(s)
             if result is not None:
                 print(result)
+

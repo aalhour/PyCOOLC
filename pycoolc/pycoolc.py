@@ -104,10 +104,10 @@ def semantic_analysis(program, print_results=True):
     :return: TODO
     """
     semanter = make_semantic_analyser()
-    checked_program = semanter.check(program)
+    program_ir = semanter.transform(program)
     if print_results:
-        print_readable_ast(checked_program)
-    return checked_program
+        print_readable_ast(program_ir)
+    return program_ir
 
 
 def main():

@@ -8,7 +8,6 @@
 # Description:  The Lexer module. Implements lexical analysis of COOL programs.
 # -----------------------------------------------------------------------------
 
-import sys
 import ply.lex as lex
 from ply.lex import TOKEN
 
@@ -399,7 +398,7 @@ class PyCoolLexer(object):
         self.lexer = lex.lex(module=self, lextab=lextab, debug=debug, optimize=optimize, outputdir=outputdir,
                              debuglog=debuglog, errorlog=errorlog)
 
-    def input(self, cool_program_source_code):
+    def input(self, cool_program_source_code: str):
         """
         Run lexical analysis on a given COOL program source code string.
         :param cool_program_source_code: COOL program source code as a string.
@@ -431,7 +430,7 @@ class PyCoolLexer(object):
         return a_clone
 
     @staticmethod
-    def test(program_source_code):
+    def test(program_source_code: str):
         """
         Given a cool program source code string try to run lexical analysis on it and return all tokens as an iterator.
         :param program_source_code: String.
@@ -459,11 +458,13 @@ class PyCoolLexer(object):
 
 
 # -----------------------------------------------------------------------------
+#
 #                     Lexer as a Standalone Python Program
 #                     Usage: ./lexer.py cool_program.cl
+#
 # -----------------------------------------------------------------------------
 
-def make_lexer(**kwargs):
+def make_lexer(**kwargs) -> PyCoolLexer:
     """
     Utility function.
     :return: PyCoolLexer object.
@@ -474,6 +475,8 @@ def make_lexer(**kwargs):
 
 
 if __name__ == "__main__":
+    import sys
+
     if len(sys.argv) != 2:
         print("Usage: ./lexer.py program.cl")
         exit()
