@@ -139,17 +139,36 @@ will ultimately either be of type `Object` or `No_Type`, which will make the who
 two roots.
 """
 
-import sys
+from collections import defaultdict
+from typing import Dict, Set, AnyStr
 import pycoolc.ast as AST
 
 
 # -----------------------------------------------------------------------------
-#                HELPERS: Errors, Symbol Tables, Setup Methods
+#
+#                GLOBALS AND CONSTANTS
+#
 # -----------------------------------------------------------------------------
 
 # Un-boxed Primitive Value Type
 UNBOXED_PRIMITIVE_VALUE_TYPE = "__prim_slot"
 
+# Class Inheritance Graph
+# @Type: dictionary-subclass with the `set` factory.
+# @Desc: It maps a parent class (key: String) to a unique collection of its children classes (value: set).
+global_inheritance_graph = defaultdict(set)
+
+# Classes Map
+# @Type: Dictionary.
+# @Desc: It maps each class name (key: String) to its class instance (value: AST.Class).
+global_classes_map = dict()
+
+
+# -----------------------------------------------------------------------------
+#
+#                HELPERS: Exceptions, Symbol Tables and Setup Methods
+#
+# -----------------------------------------------------------------------------
 
 class SemanticAnalysisError(Exception):
     pass
@@ -159,10 +178,10 @@ class SemanticAnalysisWarning(Exception):
     pass
 
 
-def setup_builtin_classes(program_ast):
+def setup_builtin_classes(program_ast: AST.Program) -> AST.Program:
     """
-    Installs new classes into the Program AST instance.
-    :param program_ast: an AST.Program class instance.
+    Initializes the COOL Builtin Classes: Object, IO, Int, Bool and String, and then adds them to the Program AST node.
+    :param program_ast: an AST.Program class instance, represents a COOL program AST.
     :return: a new AST.Program class instance.
     """
     global UNBOXED_PRIMITIVE_VALUE_TYPE
@@ -253,15 +272,67 @@ def setup_builtin_classes(program_ast):
     return AST.Program(classes=all_classes)
 
 
+def build_class_inheritance_graph(program_ast: AST.Program) -> Dict[AnyStr, Set]:
+    """
+    TODO
+    :param program_ast: TODO
+    :return: TODO
+    """
+    """inheritance_graph = defaultdict(set)
+
+    if program_ast is None:
+        raise SemanticAnalysisError("Program AST cannot be None.")
+
+    if not isinstance(program_ast, AST.Program):
+        raise SemanticAnalysisError(
+            "Expected argument to be of type AST.Program, but got {} instead.".format(type(program_ast)))
+
+    return inheritance_graph
+    """
+    raise NotImplementedError()
+
+
 # -----------------------------------------------------------------------------
-#                MAIN SEMANTIC ANALYSER API
+#
+#                Semantic Analysis Passes and Checks
+#
 # -----------------------------------------------------------------------------
 
-class SemanticAnalyser(object):
+def check_for_undefined_classes():
+    """
+    TODO
+    :return: TODO
+    """
+    raise NotImplementedError()
+
+
+def check_for_invalid_inheritance_from_builtin_classes():
+    """
+    TODO
+    :return: TODO
+    """
+    raise NotImplementedError()
+
+
+def check_for_cyclic_inheritance_relations():
+    """
+    TODO
+    :return: TODO
+    """
+    raise NotImplementedError()
+
+
+# -----------------------------------------------------------------------------
+#
+#                MAIN SEMANTIC ANALYSER API CLASS
+#
+# -----------------------------------------------------------------------------
+
+class PyCoolSemanticAnalyser(object):
     def __init__(self):
-        pass
+        super(PyCoolSemanticAnalyser, self).__init__()
 
-    def check(self, program_ast):
+    def transform(self, program_ast: AST.Program) -> AST.Program:
         """
         TODO
         :param program_ast: TODO
@@ -272,8 +343,10 @@ class SemanticAnalyser(object):
 
 
 # -----------------------------------------------------------------------------
+#
 #                Semantic Analyser as a Standalone Python Program
 #                Usage: ./semanalyser.py cool_program.cl
+#
 # -----------------------------------------------------------------------------
 
 
@@ -282,11 +355,11 @@ def make_semantic_analyser(**kwargs):
     Utility function.
     :return: PyCoolSemanter object.
     """
-    _semantic_analyser = SemanticAnalyser()
-    return _semantic_analyser
+    return PyCoolSemanticAnalyser()
 
 
 if __name__ == '__main__':
+    import sys
     from pycoolc.parser import make_parser
     from pycoolc.utils import print_readable_ast
 
@@ -305,6 +378,6 @@ if __name__ == '__main__':
     parser = make_parser()
     parse_result = parser.parse(cool_program_code)
     sema_analyser = make_semantic_analyser()
-    sema_result = sema_analyser.check(parse_result)
+    sema_result = sema_analyser.transform(parse_result)
     print_readable_ast(sema_result)
 
