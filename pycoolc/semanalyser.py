@@ -139,8 +139,9 @@ will ultimately either be of type `Object` or `No_Type`, which will make the who
 two roots.
 """
 
+from logging import info, debug, warning, critical
 from collections import defaultdict
-from typing import Dict, Set, AnyStr
+from typing import Dict, Set, AnyStr, Tuple
 import pycoolc.ast as AST
 
 
@@ -152,16 +153,11 @@ import pycoolc.ast as AST
 
 # Un-boxed Primitive Value Type
 UNBOXED_PRIMITIVE_VALUE_TYPE = "__prim_slot"
-
-# Class Inheritance Graph
-# @Type: dictionary-subclass with the `set` factory.
-# @Desc: It maps a parent class (key: String) to a unique collection of its children classes (value: set).
-global_inheritance_graph = defaultdict(set)
-
-# Classes Map
-# @Type: Dictionary.
-# @Desc: It maps each class name (key: String) to its class instance (value: AST.Class).
-global_classes_map = dict()
+IO_CLASS = "IO"
+OBJECT_CLASS = "Object"
+INTEGER_CLASS = "Int"
+BOOLEAN_CLASS = "Bool"
+STRING_CLASS = "String"
 
 
 # -----------------------------------------------------------------------------
@@ -174,152 +170,8 @@ class SemanticAnalysisError(Exception):
     pass
 
 
-class SemanticAnalysisWarning(Exception):
+class SemanticAnalysisWarning(Warning):
     pass
-
-
-def setup_builtin_classes(program_ast: AST.Program) -> AST.Program:
-    """
-    Initializes the COOL Builtin Classes: Object, IO, Int, Bool and String, and then adds them to the Program AST node.
-    :param program_ast: an AST.Program class instance, represents a COOL program AST.
-    :return: a new AST.Program class instance.
-    """
-    global UNBOXED_PRIMITIVE_VALUE_TYPE
-
-    if program_ast is None:
-        raise SemanticAnalysisError("Program AST cannot be None.")
-
-    if not isinstance(program_ast, AST.Program):
-        raise SemanticAnalysisError("Expected argument to be of type AST.Program, but got {} instead.".
-                                    format(type(program_ast)))
-
-    # Object Class
-    object_class = AST.Class(name="Object", parent=None, features=[
-        # Abort method: halts the program.
-        AST.ClassMethod(name="abort", formal_params=[], return_type="Object", body=None),
-
-        # Copy method: copies the object.
-        AST.ClassMethod(name="copy", formal_params=[], return_type="SELF_TYPE", body=None),
-
-        # type_name method: returns a string representation of the class name.
-        AST.ClassMethod(name="type_name", formal_params=[], return_type="String", body=None)
-    ])
-
-    # IO Class
-    io_class = AST.Class(name="IO", parent="Object", features=[
-        # in_int: reads an integer from stdio
-        AST.ClassMethod(name="in_int", formal_params=[], return_type="Int", body=None),
-
-        # in_string: reads a string from stdio
-        AST.ClassMethod(name="in_string", formal_params=[], return_type="String", body=None),
-
-        # out_int: outputs an integer to stdio
-        AST.ClassMethod(name="out_int",
-                        formal_params=[AST.FormalParameter("arg", "Int")],
-                        return_type="SELF_TYPE",
-                        body=None),
-
-        # out_string: outputs a string to stdio
-        AST.ClassMethod(name="out_string",
-                        formal_params=[AST.FormalParameter("arg", "String")],
-                        return_type="SELF_TYPE",
-                        body=None)
-    ])
-
-    # Int Class
-    int_class = AST.Class(name="Int", parent=object_class.name, features=[
-        # _val attribute: integer un-boxed value
-        AST.ClassAttribute(name="_val", attr_type=UNBOXED_PRIMITIVE_VALUE_TYPE, init_expr=None)
-    ])
-
-    # Bool Class
-    bool_class = AST.Class(name="Bool", parent=object_class.name, features=[
-        # _val attribute: boolean un-boxed value
-        AST.ClassAttribute(name="_val", attr_type=UNBOXED_PRIMITIVE_VALUE_TYPE, init_expr=None)
-    ])
-
-    # String Class
-    string_class = AST.Class(name="String", parent=object_class.name, features=[
-        # _val attribute: string length
-        AST.ClassAttribute(name='_val', attr_type='Int', init_expr=None),
-
-        # _str_field attribute: an un-boxed, untyped string value
-        AST.ClassAttribute('_str_field', UNBOXED_PRIMITIVE_VALUE_TYPE, None),
-
-        # length method: returns the string's length
-        AST.ClassMethod(name='length', formal_params=[], return_type='Int', body=None),
-
-        # concat method: concatenates this string with another
-        AST.ClassMethod(name='concat',
-                        formal_params=[AST.FormalParameter('arg', 'String')],
-                        return_type='String',
-                        body=None),
-
-        # substr method: returns the substring between two integer indices
-        AST.ClassMethod(name='substr',
-                        formal_params=[AST.FormalParameter('arg1', 'Int'), AST.FormalParameter('arg2', 'Int')],
-                        return_type='String',
-                        body=None)
-    ])
-
-    # Built in classes collection
-    builtin_classes = (object_class, io_class, int_class, bool_class, string_class)
-
-    # All classes
-    all_classes = builtin_classes + program_ast.classes
-
-    # Return a new object
-    return AST.Program(classes=all_classes)
-
-
-def build_class_inheritance_graph(program_ast: AST.Program) -> Dict[AnyStr, Set]:
-    """
-    TODO
-    :param program_ast: TODO
-    :return: TODO
-    """
-    """inheritance_graph = defaultdict(set)
-
-    if program_ast is None:
-        raise SemanticAnalysisError("Program AST cannot be None.")
-
-    if not isinstance(program_ast, AST.Program):
-        raise SemanticAnalysisError(
-            "Expected argument to be of type AST.Program, but got {} instead.".format(type(program_ast)))
-
-    return inheritance_graph
-    """
-    raise NotImplementedError()
-
-
-# -----------------------------------------------------------------------------
-#
-#                Semantic Analysis Passes and Checks
-#
-# -----------------------------------------------------------------------------
-
-def check_for_undefined_classes():
-    """
-    TODO
-    :return: TODO
-    """
-    raise NotImplementedError()
-
-
-def check_for_invalid_inheritance_from_builtin_classes():
-    """
-    TODO
-    :return: TODO
-    """
-    raise NotImplementedError()
-
-
-def check_for_cyclic_inheritance_relations():
-    """
-    TODO
-    :return: TODO
-    """
-    raise NotImplementedError()
 
 
 # -----------------------------------------------------------------------------
@@ -330,16 +182,247 @@ def check_for_cyclic_inheritance_relations():
 
 class PyCoolSemanticAnalyser(object):
     def __init__(self):
+        """
+        TODO
+        :param program_ast: TODO
+        :return: None
+        """
         super(PyCoolSemanticAnalyser, self).__init__()
+        
+        # Initialize the internal program ast instance.
+        self._program_ast = None
 
+        # Classes Map: maps each class name (key: String) to its class instance (value: AST.Class).
+        # Dict[AnyStr, AST.Class]
+        self._classes_map = dict()
+
+        # Class Inheritance Graph: maps a parent class (key: String) to a unique collection of its 
+        #   children classes (value: set).
+        # Dict[AnyStr, Set]
+        self._inheritance_graph = defaultdict(set)
+    
+    # #########################################################################
+    #                                PUBLIC                                   #
+    # #########################################################################
     def transform(self, program_ast: AST.Program) -> AST.Program:
         """
         TODO
         :param program_ast: TODO
         :return: TODO
         """
-        program_ast = setup_builtin_classes(program_ast)
-        return program_ast
+        if program_ast is None:
+            raise ValueError("Program AST object cannot be None!")
+        elif not isinstance(program_ast, AST.Program):
+            raise TypeError("Program AST object is not of type \"AST.Program\"!")
+        
+        self._init_collections(program_ast)
+
+        # Run some passes
+        self._default_undefined_parent_classes_to_object()
+        self._invalidate_inheritance_from_builtin_classes()
+        self._check_cyclic_inheritance_relations()
+        
+        return self._program_ast
+    
+    # #########################################################################
+    #                                PRIVATE                                  #
+    # #########################################################################
+    def _init_collections(self, program_ast: AST.Program) -> None:
+        """
+        TODO
+        :param program_ast: TODO
+        :return: None
+        """
+        # Install the builtin classes into the internal program_ast private AST instance.
+        self._program_ast = self._install_builtin_types_to_ast(program_ast)
+
+        # Build the inheritance graph and initialize the classes map.
+        self._classes_map, self._inheritance_graph = \
+            self._build_classes_map_and_inheritance_graph(self._program_ast)
+    
+    def _install_builtin_types_to_ast(self, program_ast: AST.Program) -> AST.Program:
+        """
+        Initializes the COOL Builtin Classes: Object, IO, Int, Bool and String, and then adds them to the Program AST node.
+        :param program_ast: an AST.Program class instance, represents a COOL program AST.
+        :return: a new AST.Program class instance.
+        """
+        global UNBOXED_PRIMITIVE_VALUE_TYPE, OBJECT_CLASS, IO_CLASS, INTEGER_CLASS, STRING_CLASS, BOOLEAN_CLASS
+
+        if program_ast is None:
+            raise SemanticAnalysisError("Program AST cannot be None.")
+
+        if not isinstance(program_ast, AST.Program):
+            raise SemanticAnalysisError("Expected argument to be of type AST.Program, but got {} instead.".
+                                        format(type(program_ast)))
+
+        # Object Class
+        object_class = AST.Class(name=OBJECT_CLASS, parent=None, features=[
+            # Abort method: halts the program.
+            AST.ClassMethod(name="abort", formal_params=[], return_type="Object", body=None),
+
+            # Copy method: copies the object.
+            AST.ClassMethod(name="copy", formal_params=[], return_type="SELF_TYPE", body=None),
+
+            # type_name method: returns a string representation of the class name.
+            AST.ClassMethod(name="type_name", formal_params=[], return_type="String", body=None)
+        ])
+
+        # IO Class
+        io_class = AST.Class(name=IO_CLASS, parent="Object", features=[
+            # in_int: reads an integer from stdio
+            AST.ClassMethod(name="in_int", formal_params=[], return_type="Int", body=None),
+
+            # in_string: reads a string from stdio
+            AST.ClassMethod(name="in_string", formal_params=[], return_type="String", body=None),
+
+            # out_int: outputs an integer to stdio
+            AST.ClassMethod(name="out_int",
+                            formal_params=[AST.FormalParameter("arg", "Int")],
+                            return_type="SELF_TYPE",
+                            body=None),
+
+            # out_string: outputs a string to stdio
+            AST.ClassMethod(name="out_string",
+                            formal_params=[AST.FormalParameter("arg", "String")],
+                            return_type="SELF_TYPE",
+                            body=None)
+        ])
+
+        # Int Class
+        int_class = AST.Class(name=INTEGER_CLASS, parent=object_class.name, features=[
+            # _val attribute: integer un-boxed value
+            AST.ClassAttribute(name="_val", attr_type=UNBOXED_PRIMITIVE_VALUE_TYPE, init_expr=None)
+        ])
+
+        # Bool Class
+        bool_class = AST.Class(name=BOOLEAN_CLASS, parent=object_class.name, features=[
+            # _val attribute: boolean un-boxed value
+            AST.ClassAttribute(name="_val", attr_type=UNBOXED_PRIMITIVE_VALUE_TYPE, init_expr=None)
+        ])
+
+        # String Class
+        string_class = AST.Class(name=STRING_CLASS, parent=object_class.name, features=[
+            # _val attribute: string length
+            AST.ClassAttribute(name='_val', attr_type='Int', init_expr=None),
+
+            # _str_field attribute: an un-boxed, untyped string value
+            AST.ClassAttribute('_str_field', UNBOXED_PRIMITIVE_VALUE_TYPE, None),
+
+            # length method: returns the string's length
+            AST.ClassMethod(name='length', formal_params=[], return_type='Int', body=None),
+
+            # concat method: concatenates this string with another
+            AST.ClassMethod(name='concat',
+                            formal_params=[AST.FormalParameter('arg', 'String')],
+                            return_type='String',
+                            body=None),
+
+            # substr method: returns the substring between two integer indices
+            AST.ClassMethod(name='substr',
+                            formal_params=[AST.FormalParameter('arg1', 'Int'), AST.FormalParameter('arg2', 'Int')],
+                            return_type='String',
+                            body=None)
+        ])
+
+        # Built in classes collection
+        builtin_classes = (object_class, io_class, int_class, bool_class, string_class)
+
+        # All classes
+        all_classes = builtin_classes + program_ast.classes
+        
+        return AST.Program(classes=all_classes)
+
+    def _build_classes_map_and_inheritance_graph(self, program_ast: AST.Program) -> Tuple[Dict, Dict]:
+        """
+        TODO
+        :param program_ast: TODO
+        :return: TODO
+        """
+        if program_ast is None:
+            raise SemanticAnalysisError("Program AST cannot be None.")
+
+        if not isinstance(program_ast, AST.Program):
+            raise SemanticAnalysisError(
+                "Expected argument to be of type AST.Program, but got {} instead.".format(type(program_ast)))
+        
+        classes_map = {}
+        inheritance_graph = defaultdict(set)
+
+        for klass in program_ast.classes:
+            if klass.name in classes_map:
+                raise SemanticAnalysisError("Class \"{}\" is already defined!".format(klass.name))
+            classes_map[klass.name] = klass
+
+            if klass.name == "Object":
+                continue
+
+            klass.parent = klass.parent if klass.parent else "Object"
+            inheritance_graph[klass.parent].add(klass.name)
+
+        return classes_map, inheritance_graph
+    
+    def _default_undefined_parent_classes_to_object(self):
+        """
+        TODO
+        :return: TODO
+        """
+        global OBJECT_CLASS
+
+        if not self._inheritance_graph or len(self._inheritance_graph) == 0:
+            warning("Inheritance Graph is empty!")
+        
+        if not self._classes_map or len(self._classes_map) == 0:
+            warning("Classes Map is empty!")
+
+        # Assume self._inheritance_graph and self._classes_map are initialized
+        nonexisting_parents = [
+            klass for klass in self._inheritance_graph.keys() 
+            if klass not in self._classes_map and klass != OBJECT_CLASS
+        ]
+
+        for parent_klass in nonexisting_parents:
+            # Warn the user about this
+            warning(
+                "Found an undefined parent class: \"{0}\". Defaulting all its children's to the Object parent class."
+                    .format(parent_klass))
+
+            # Add the child classes of this nonexisting parent class to the set of classes
+            #   that inherit from the "Object" class.
+            self._inheritance_graph[OBJECT_CLASS] |= self._inheritance_graph[parent_klass]
+            
+            # For every child class that inherits from the nonexisting parent, modify their
+            #   parent attribute in their AST Node to have "Object" instead.
+            for child_klass in self._inheritance_graph[parent_klass]:
+                self._classes_map[child_klass].parent = OBJECT_CLASS
+            
+            # Delete this nonexistent parent class from the inheritance map
+            del self._inheritance_graph[parent_klass]
+
+    def _invalidate_inheritance_from_builtin_classes(self):
+        """
+        TODO
+        :return: TODO
+        """
+        if not self._inheritance_graph or len(self._inheritance_graph) == 0:
+            warning("Inheritance Graph is empty!")
+
+        if not self._classes_map or len(self._classes_map) == 0:
+            warning("Classes Map is empty!")
+
+        global INTEGER_CLASS, STRING_CLASS, BOOLEAN_CLASS
+
+        for parent_klass in [INTEGER_CLASS, STRING_CLASS, BOOLEAN_CLASS]:
+            for child_klass in self._inheritance_graph[parent_klass]:
+                raise SemanticAnalysisError(
+                    "Not Allowed! Class \"{0}\" is inheriting from built-in class \"{1}\".".format(
+                        child_klass, parent_klass))
+    
+    def _check_cyclic_inheritance_relations(self):
+        """
+        TODO
+        :return: TODO
+        """
+        raise NotImplementedError()
 
 
 # -----------------------------------------------------------------------------
