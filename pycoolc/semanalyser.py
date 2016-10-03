@@ -239,8 +239,9 @@ class PyCoolSemanticAnalyser(object):
         # Build the inheritance graph and initialize the classes map.
         self._classes_map, self._inheritance_graph = \
             self._build_classes_map_and_inheritance_graph(self._program_ast)
-    
-    def _install_builtin_types_to_ast(self, program_ast: AST.Program) -> AST.Program:
+
+    @staticmethod
+    def _install_builtin_types_to_ast(program_ast: AST.Program) -> AST.Program:
         """
         Initializes the COOL Builtin Classes: Object, IO, Int, Bool and String, and then adds them to the Program AST node.
         :param program_ast: an AST.Program class instance, represents a COOL program AST.
@@ -332,12 +333,15 @@ class PyCoolSemanticAnalyser(object):
         
         return AST.Program(classes=all_classes)
 
-    def _build_classes_map_and_inheritance_graph(self, program_ast: AST.Program) -> Tuple[Dict, Dict]:
+    @staticmethod
+    def _build_classes_map_and_inheritance_graph(program_ast: AST.Program) -> Tuple[Dict, Dict]:
         """
         TODO
         :param program_ast: TODO
         :return: TODO
         """
+        global OBJECT_CLASS
+
         if program_ast is None:
             raise SemanticAnalysisError("Program AST cannot be None.")
 
@@ -356,11 +360,33 @@ class PyCoolSemanticAnalyser(object):
             if klass.name == "Object":
                 continue
 
-            klass.parent = klass.parent if klass.parent else "Object"
+            klass.parent = klass.parent if klass.parent else OBJECT_CLASS
             inheritance_graph[klass.parent].add(klass.name)
 
         return classes_map, inheritance_graph
-    
+
+    def _traverse_inheritance_graph(self, starting_node: AnyStr, seen: Dict) -> bool:
+        """
+        Depth-First Traversal of the Inheritance Graph.
+        :param starting_node: TODO
+        :param seen: TODO
+        :return: TODO
+        """
+        if seen is None:
+            seen = {}
+
+        seen[starting_node] = True
+
+        # If the starting node is not a parent class for any child classes, then return!
+        if starting_node not in self._inheritance_graph:
+            return True
+
+        # Traverse the children of the current node
+        for child_node in self._inheritance_graph[starting_node]:
+            self._traverse_inheritance_graph(starting_node=child_node, seen=seen)
+
+        return True
+
     def _default_undefined_parent_classes_to_object(self):
         """
         TODO
@@ -375,16 +401,16 @@ class PyCoolSemanticAnalyser(object):
             warning("Classes Map is empty!")
 
         # Assume self._inheritance_graph and self._classes_map are initialized
-        nonexisting_parents = [
+        non_existing_parents = [
             klass for klass in self._inheritance_graph.keys() 
             if klass not in self._classes_map and klass != OBJECT_CLASS
         ]
 
-        for parent_klass in nonexisting_parents:
+        for parent_klass in non_existing_parents:
             # Warn the user about this
             warning(
                 "Found an undefined parent class: \"{0}\". Defaulting all its children's to the Object parent class."
-                    .format(parent_klass))
+                .format(parent_klass))
 
             # Add the child classes of this nonexisting parent class to the set of classes
             #   that inherit from the "Object" class.
@@ -422,7 +448,17 @@ class PyCoolSemanticAnalyser(object):
         TODO
         :return: TODO
         """
-        raise NotImplementedError()
+        global OBJECT_CLASS
+
+        # Mark all classes as not seen
+        seen = {class_name: False for class_name in self._classes_map.keys()}
+
+        # Perform a depth-first traversal of the inheritance graph, mutate the seen dict as you go.
+        self._traverse_inheritance_graph(OBJECT_CLASS, seen)
+
+        for class_name, was_seen in seen.items():
+            if not was_seen:
+                raise SemanticAnalysisError("Class \"{0}\" completes an inheritance cycle!".format(class_name))
 
 
 # -----------------------------------------------------------------------------
