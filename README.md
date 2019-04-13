@@ -158,7 +158,7 @@ print(parsing_result)
 
 ## LITERATURE
 
-  * Engineering a Compiler, Cooper and Torczon - [Amazon](https://www.amazon.com/dp/012088478X).
+  * Engineering a Compiler, Cooper and Torczon - [Amazon](https://www.amazon.com/dp/012088478X)
   * Modern Compiler Implementation in ML, Appel - [www](https://www.cs.princeton.edu/~appel/modern/ml/), [Amazon](https://www.amazon.com/dp/0521607647)
   * Stanford's Compiler Theory Course - [www12](https://web.stanford.edu/class/archive/cs/cs143/cs143.1128/), [www16](http://web.stanford.edu/class/cs143/), [YouTube](https://www.youtube.com/playlist?list=PLDcmCgguL9rxPoVn2ykUFc8TOpLyDU5gx)
 
