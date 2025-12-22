@@ -56,24 +56,24 @@ SKIPPED=0
 # Expected output is a grep pattern to match against SPIM output
 
 declare -a TESTS=(
-    # Simple output tests - verified working
+    # Fully verified - complete output
     "hello_world.cl|NONE|Hello, World."
     "io.cl|NONE|A: Hello world"
     "complex.cl|NONE|=)"
     "new_complex.cl|NONE|=)"
     "book_list.cl|NONE|title:"
+    "list.cl|NONE|5 4 3 2 1"
     
-    # Lambda calculus - complex output, just compile
-    "lam.cl|NONE|COMPILE_ONLY"
+    # Verified partial output (prints before waiting for input)
+    "lam.cl|NONE|\\\\x.x"
+    "arith.cl|NONE|number 0 is even"
+    "life.cl|NONE|Welcome to the Game of Life"
     
-    # Interactive programs - compile only (need user input)
-    "arith.cl|NONE|COMPILE_ONLY"
+    # Interactive - no output before requiring input
     "cells.cl|NONE|COMPILE_ONLY"
     "cool.cl|NONE|COMPILE_ONLY"
     "graph.cl|NONE|COMPILE_ONLY"
     "hairyscary.cl|NONE|COMPILE_ONLY"
-    "life.cl|NONE|COMPILE_ONLY"
-    "list.cl|NONE|COMPILE_ONLY"
     "palindrome.cl|NONE|COMPILE_ONLY"
     "primes.cl|NONE|COMPILE_ONLY"
     "sort_list.cl|NONE|COMPILE_ONLY"

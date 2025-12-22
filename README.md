@@ -6,35 +6,51 @@ An [AOT](https://en.wikipedia.org/wiki/Ahead-of-time_compilation) compiler for *
 
 A BNF-based specification of **COOL**'s Context-Free Grammar can be found at [/docs/Grammar.md](/docs/Grammar.md).
 
+## Contents
 
-------------------------------
-
-## CONTENTS
-
-  * [Overview](#overview).
-    + [Architecture](#architecture).
-    + [Example Scenario](#example-scenario).
-  * [Development Status](#dev-status).
-  * [Installation](#installation).
-    + [Requirements](#requirements).
-    + [Installing SPIM](#installing-spim).
-    + [Installing from Source](#installing-from-source).
-    + [Installing from PyPI](#installing-from-pypi).
-  * [Usage](#usage).
-    + [Standalone](#standalone).
-    + [Python Module](#python-module).
-    + [Makefile Targets](#makefile-targets).
-  * [Language Features](#language-features).
-  * [Testing](#testing).
-  * [Literature](#literature).
+  * [Language Features](#language-features)
+  * [Project overview](#project-overview)
+    + [Architecture](#architecture)
+    + [How it works](#how-it-works)
+  * [Development status](#development-status)
+  * [How to install](#how-to-install)
+    + [Requirements](#requirements)
+    + [Installing SPIM](#installing-spim)
+    + [Installing from source](#installing-from-source)
+  * [How to use](#how-to-use)
+    + [Standalone](#standalone)
+    + [Python modules](#python-modules)
+    + [Makefile commands](#makefile-commands)
+  * [How to test](#how-to-test)
+  * [References](#references)
   * [License](#license)
 
-------------------------------
+
+## Language features
+
+  * Primitive Data Types:
+    + Integers
+    + Strings
+    + Booleans (`true`, `false`)
+  * Object Oriented:
+    + Class Declaration
+    + Object Instantiation
+    + Inheritance
+    + Class Attributes
+    + Class Methods
+  * Strong Static Typing
+  * Pattern Matching
+  * Control Flow:
+    + Switch Case
+    + If/Then/Else
+    + While Loops
+  * Automatic Memory Management:
+    + Garbage Collection (planned)
 
 
-## OVERVIEW
+## Project overview
 
-### Architecture:
+### Architecture
 
 PyCOOLC follows classical compiler architecture with Frontend and Backend components:
 
@@ -64,7 +80,7 @@ flowchart LR
 | Optimizer | [`optimization/`](/pycoolc/optimization/) | Constant propagation, liveness, dead code elimination |
 | Code Generator | [`codegen.py`](/pycoolc/codegen.py) | MIPS 32-bit with dispatch tables and runtime |
 
-### How It Works:
+### How it works
 
 COOL Program:
 
@@ -79,8 +95,7 @@ class Main inherits IO {
 3. **Semantic Analysis** → Type-checks `out_string` call, resolves `IO` inheritance
 4. **Code Generation** → MIPS assembly with dispatch to `IO.out_string`
 
-
-## DEV. STATUS
+## Development status
 
 Each Compiler stage and Runtime feature is designed as a separate component that can be used standalone or as a Python module, the following is the development status of each one:
 
@@ -93,8 +108,7 @@ Each Compiler stage and Runtime feature is designed as a separate component that
 | Code Generation    | [`codegen.py`](/pycoolc/codegen.py)         | :white_check_mark: **done** |
 | Garbage Collection | -                                           | :construction: planned      |
 
-
-## INSTALLATION
+## How to install
 
 ### Requirements
 
@@ -132,7 +146,7 @@ sudo dpkg -i qtspim_9.1.24_linux64.deb
 
 Download `QtSpim_9.1.24_Windows.msi` from [SourceForge](https://sourceforge.net/projects/spimsimulator/files/QtSpim_9.1.24_Windows.msi/download) and run the installer.
 
-### Installing from Source
+### Installing from source
 
 ```bash
 # Clone the repository
@@ -154,14 +168,7 @@ make venv
 source .venv/bin/activate
 ```
 
-### Installing from PyPI
-
-```bash
-pip install pycoolc
-```
-
-
-## USAGE
+## How to use
 
 ### Standalone
 
@@ -215,8 +222,7 @@ pycoolc hello_world.cl --ast        # Show parsed AST
 pycoolc hello_world.cl --semantics  # Show typed AST
 ```
 
-
-### Python Module
+### Python modules
 
 ```python
 from pycoolc.lexer import make_lexer
@@ -245,8 +251,7 @@ mips_code = codegen.generate(typed_ast)
 print(mips_code)
 ```
 
-
-### Makefile Targets
+### Makefile commands
 
 ```bash
 make help              # Show all available targets
@@ -258,30 +263,7 @@ make test              # Run all tests
 make clean             # Clean build artifacts
 ```
 
-
-## LANGUAGE FEATURES
-
-  * Primitive Data Types:
-    + Integers.
-    + Strings.
-    + Booleans (`true`, `false`).
-  * Object Oriented:
-    + Class Declaration.
-    + Object Instantiation.
-    + Inheritance.
-    + Class Attributes.
-    + Class Methods.
-  * Strong Static Typing.
-  * Pattern Matching.
-  * Control Flow:
-    + Switch Case.
-    + If/Then/Else.
-    + While Loops.
-  * Automatic Memory Management:
-    + Garbage Collection (planned).
-
-
-## TESTING
+## How to test
 
 PyCOOLC has comprehensive test coverage across all compiler phases:
 
@@ -296,15 +278,14 @@ make integration-test
 make test
 ```
 
-
-## LITERATURE
+## References
 
   * Engineering a Compiler, Cooper and Torczon - [Amazon](https://www.amazon.com/dp/012088478X)
   * Modern Compiler Implementation in ML, Appel - [www](https://www.cs.princeton.edu/~appel/modern/ml/), [Amazon](https://www.amazon.com/dp/0521607647)
   * Stanford's Compiler Theory Course - [www12](https://web.stanford.edu/class/archive/cs/cs143/cs143.1128/), [www16](http://web.stanford.edu/class/cs143/), [YouTube](https://www.youtube.com/playlist?list=PLDcmCgguL9rxPoVn2ykUFc8TOpLyDU5gx)
 
 
-## LICENSE
+## License
 
 This project is licensed under the [MIT License](LICENSE).
 
