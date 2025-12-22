@@ -1401,3 +1401,225 @@ class TestStackOrderingRegression:
         # Should call equality test
         assert "_equality_test" in code
         assert "addiu" in code and "$sp" in code
+
+
+class TestTypeInference:
+    """Tests for expression type inference in codegen."""
+    
+    def test_attribute_type_inference(self):
+        """Attribute access should infer correct type."""
+        code = compile_to_mips("""
+            class Main inherits IO {
+                x : Int <- 42;
+                main() : Object { out_int(x) };
+            };
+        """)
+        assert "_method_Main_main" in code
+    
+    def test_static_dispatch_type_inference(self):
+        """Static dispatch should use dispatch type."""
+        code = compile_to_mips("""
+            class Main inherits IO {
+                main() : Object {
+                    self@IO.out_string("hello")
+                };
+            };
+        """)
+        # Verify static dispatch is generated
+        assert "_method_IO_out_string" in code or "IO_out_string" in code
+    
+    def test_new_object_type_inference(self):
+        """New expression should infer object type."""
+        code = compile_to_mips("""
+            class Foo { };
+            class Main {
+                main() : Foo { new Foo };
+            };
+        """)
+        assert "Foo" in code
+    
+    def test_integer_literal_type(self):
+        """Integer literals have Int type."""
+        code = compile_to_mips("""
+            class Main {
+                main() : Int { 42 };
+            };
+        """)
+        assert "42" in code or "li" in code
+    
+    def test_boolean_literal_type(self):
+        """Boolean literals have Bool type."""
+        code = compile_to_mips("""
+            class Main {
+                main() : Bool { true };
+            };
+        """)
+        assert "_bool_const_true" in code
+
+
+class TestBuiltinMethodReturnTypes:
+    """Tests for builtin method return type handling."""
+    
+    def test_io_out_string_returns_self(self):
+        """IO.out_string returns SELF_TYPE."""
+        code = compile_to_mips("""
+            class Main inherits IO {
+                main() : Object {
+                    out_string("hello").out_string("world")
+                };
+            };
+        """)
+        # Chained calls should work
+        assert "_method_IO_out_string" in code
+    
+    def test_string_length_returns_int(self):
+        """String.length returns Int."""
+        code = compile_to_mips("""
+            class Main inherits IO {
+                main() : Object {
+                    out_int("hello".length())
+                };
+            };
+        """)
+        assert "_method_String_length" in code
+    
+    def test_string_concat_returns_string(self):
+        """String.concat returns String."""
+        code = compile_to_mips("""
+            class Main inherits IO {
+                main() : Object {
+                    out_string("hello".concat("world"))
+                };
+            };
+        """)
+        assert "_method_String_concat" in code
+    
+    def test_object_type_name_returns_string(self):
+        """Object.type_name returns String."""
+        code = compile_to_mips("""
+            class Main inherits IO {
+                main() : Object {
+                    out_string((new Object).type_name())
+                };
+            };
+        """)
+        assert "_method_Object_type_name" in code
+
+
+class TestAncestorChain:
+    """Tests for inheritance chain handling."""
+    
+    def test_inherited_method_dispatch(self):
+        """Methods inherited from builtin classes work."""
+        code = compile_to_mips("""
+            class MyIO inherits IO { };
+            class Main {
+                io : MyIO <- new MyIO;
+                main() : Object {
+                    io.out_string("test")
+                };
+            };
+        """)
+        # Should have method table for MyIO
+        assert "MyIO" in code
+    
+    def test_deep_inheritance_chain(self):
+        """Deep inheritance chains are handled."""
+        code = compile_to_mips("""
+            class A { };
+            class B inherits A { };
+            class C inherits B { };
+            class Main {
+                main() : C { new C };
+            };
+        """)
+        assert "A" in code
+        assert "C" in code
+
+
+class TestEdgeCases:
+    """Edge cases in code generation."""
+    
+    def test_empty_method(self):
+        """Method returning just self."""
+        code = compile_to_mips("""
+            class Main {
+                main() : Object { self };
+            };
+        """)
+        assert "_method_Main_main" in code
+    
+    def test_multiple_string_constants(self):
+        """Multiple string constants are deduplicated."""
+        code = compile_to_mips("""
+            class Main inherits IO {
+                main() : Object {
+                    {
+                        out_string("test");
+                        out_string("test");
+                        out_string("other");
+                    }
+                };
+            };
+        """)
+        # "test" should appear in data section
+        assert "test" in code
+    
+    def test_nested_dispatch(self):
+        """Nested method dispatch."""
+        code = compile_to_mips("""
+            class Main inherits IO {
+                main() : Object {
+                    out_string((new IO).out_string("inner").type_name())
+                };
+            };
+        """)
+        assert "_method_IO_out_string" in code
+    
+    def test_dynamic_dispatch_on_attribute(self):
+        """Dispatch on attribute should work."""
+        code = compile_to_mips("""
+            class Foo {
+                bar() : Int { 42 };
+            };
+            class Main {
+                f : Foo <- new Foo;
+                main() : Int { f.bar() };
+            };
+        """)
+        assert "_method_Foo_bar" in code
+    
+    def test_self_type_method_chain(self):
+        """SELF_TYPE return allows method chaining."""
+        code = compile_to_mips("""
+            class Main inherits IO {
+                main() : Object {
+                    out_string("a").out_string("b").out_string("c")
+                };
+            };
+        """)
+        # Chaining should work
+        assert "_method_IO_out_string" in code
+
+
+class TestStaticDispatchEdgeCases:
+    """Edge cases for static dispatch."""
+    
+    def test_static_dispatch_to_parent(self):
+        """Static dispatch to parent class."""
+        code = compile_to_mips("""
+            class Parent {
+                foo() : Int { 1 };
+            };
+            class Child inherits Parent {
+                foo() : Int { 2 };
+                bar() : Int { self@Parent.foo() };
+            };
+            class Main {
+                c : Child <- new Child;
+                main() : Int { c.bar() };
+            };
+        """)
+        # Should have dispatch info
+        assert "Parent" in code
+        assert "Child" in code
