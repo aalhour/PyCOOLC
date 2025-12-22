@@ -866,8 +866,19 @@ class MIPSCodeGenerator:
         self._emit_instr("lw", "$t0", "12($a0)")  # Length of first
         self._emit_instr("lw", "$t1", "12($a1)")  # Length of second
         self._emit_instr("bne", "$t0", "$t1", "_eq_false")
-        # TODO: Compare string contents byte by byte
-        self._emit_instr("j", "_eq_true")
+        # Compare string contents byte by byte
+        # $t0 = length (same for both), $a0/$a1 = string objects
+        self._emit_instr("addiu", "$t2", "$a0", "16")  # ptr to first string data
+        self._emit_instr("addiu", "$t3", "$a1", "16")  # ptr to second string data
+        self._emit_label("_eq_string_loop")
+        self._emit_instr("beqz", "$t0", "_eq_true")  # All bytes matched
+        self._emit_instr("lb", "$t4", "0($t2)")
+        self._emit_instr("lb", "$t5", "0($t3)")
+        self._emit_instr("bne", "$t4", "$t5", "_eq_false")
+        self._emit_instr("addiu", "$t2", "$t2", "1")
+        self._emit_instr("addiu", "$t3", "$t3", "1")
+        self._emit_instr("addiu", "$t0", "$t0", "-1")
+        self._emit_instr("j", "_eq_string_loop")
         
         self._emit_label("_eq_true")
         self._emit_instr("la", "$a0", "_bool_const_true")
@@ -933,39 +944,169 @@ class MIPSCodeGenerator:
         self._emit_instr("jr", "$ra")
         
         # IO.in_string
+        # String object layout: [tag, size, dispatch, length, ...chars..., null]
+        # We allocate a String object inline with the chars after it
         self._emit_label(f"{METHOD_PREFIX}IO_in_string")
-        # Simplified - return empty string
-        self._emit_instr("la", "$a0", "_str_const_empty")
+        # Save $ra and self
+        self._emit_instr("addiu", "$sp", "$sp", "-16")
+        self._emit_instr("sw", "$ra", "12($sp)")
+        self._emit_instr("sw", "$a0", "8($sp)")   # Save self
+        
+        # Allocate buffer for input (1024 bytes)
+        self._emit_instr("li", "$a0", "1024")
+        self._emit_instr("li", "$v0", "9")        # sbrk syscall
+        self._emit_instr("syscall")
+        self._emit_instr("sw", "$v0", "4($sp)")   # Save buffer address
+        
+        # Read string into buffer (syscall 8)
+        self._emit_instr("move", "$a0", "$v0")    # Buffer address
+        self._emit_instr("li", "$a1", "1024")     # Max length
+        self._emit_instr("li", "$v0", "8")        # Read string syscall
+        self._emit_instr("syscall")
+        
+        # Calculate string length (find null or newline)
+        self._emit_instr("lw", "$t0", "4($sp)")   # Buffer address
+        self._emit_instr("move", "$t1", "$t0")    # Current position
+        self._emit_instr("li", "$t2", "0")        # Length counter
+        self._emit_label("_in_string_len_loop")
+        self._emit_instr("lb", "$t3", "0($t1)")
+        self._emit_instr("beqz", "$t3", "_in_string_len_done")
+        self._emit_instr("li", "$t4", "10")       # Newline
+        self._emit_instr("beq", "$t3", "$t4", "_in_string_len_done")
+        self._emit_instr("addiu", "$t1", "$t1", "1")
+        self._emit_instr("addiu", "$t2", "$t2", "1")
+        self._emit_instr("j", "_in_string_len_loop")
+        self._emit_label("_in_string_len_done")
+        self._emit_instr("sb", "$zero", "0($t1)") # Null terminate
+        self._emit_instr("sw", "$t2", "0($sp)")   # Save length
+        
+        # Allocate String object: 16 bytes header + string + 1 null + padding
+        # Size = 16 (header) + length + 1, rounded up to 4
+        self._emit_instr("addiu", "$t2", "$t2", "20")  # 16 + len + 1 + 3 for align
+        self._emit_instr("li", "$t3", "-4")
+        self._emit_instr("and", "$a0", "$t2", "$t3")   # Round down to 4
+        self._emit_instr("li", "$v0", "9")        # sbrk
+        self._emit_instr("syscall")
+        self._emit_instr("move", "$a0", "$v0")    # String object address
+        
+        # Fill in String object header
+        self._emit_instr("li", "$t0", "4")        # String class tag
+        self._emit_instr("sw", "$t0", "0($a0)")
+        self._emit_instr("sw", "$t2", "4($a0)")   # Size
+        self._emit_instr("la", "$t0", f"{CLASS_DISPTAB_PREFIX}String")
+        self._emit_instr("sw", "$t0", "8($a0)")   # Dispatch table
+        self._emit_instr("lw", "$t0", "0($sp)")   # Length
+        self._emit_instr("sw", "$t0", "12($a0)")  # Store length
+        
+        # Copy string data to offset 16
+        self._emit_instr("lw", "$t1", "4($sp)")   # Source buffer
+        self._emit_instr("addiu", "$t2", "$a0", "16")  # Dest (after header)
+        self._emit_label("_in_string_copy_loop")
+        self._emit_instr("lb", "$t3", "0($t1)")
+        self._emit_instr("sb", "$t3", "0($t2)")
+        self._emit_instr("beqz", "$t3", "_in_string_copy_done")
+        self._emit_instr("addiu", "$t1", "$t1", "1")
+        self._emit_instr("addiu", "$t2", "$t2", "1")
+        self._emit_instr("j", "_in_string_copy_loop")
+        self._emit_label("_in_string_copy_done")
+        
+        # Restore and return (String object already in $a0)
+        self._emit_instr("lw", "$ra", "12($sp)")
+        self._emit_instr("addiu", "$sp", "$sp", "16")
         self._emit_instr("jr", "$ra")
         
         # IO.in_int
         self._emit_label(f"{METHOD_PREFIX}IO_in_int")
+        # Save $ra before calling _Object_copy
+        self._emit_instr("addiu", "$sp", "$sp", "-8")
+        self._emit_instr("sw", "$ra", "4($sp)")
         self._emit_instr("li", "$v0", "5")  # Read int syscall
         self._emit_instr("syscall")
         # Create Int object with the value
-        self._emit_instr("move", "$t0", "$v0")  # Save value
+        self._emit_instr("sw", "$v0", "0($sp)")  # Save value on stack
         self._emit_instr("la", "$a0", f"{CLASS_PROTOBJ_PREFIX}Int")
         self._emit_instr("jal", "_Object_copy")
-        self._emit_instr("sw", "$t0", "12($a0)")  # Store value
+        self._emit_instr("lw", "$t0", "0($sp)")  # Restore value
+        self._emit_instr("sw", "$t0", "12($a0)")  # Store in Int object
+        # Restore $ra and return
+        self._emit_instr("lw", "$ra", "4($sp)")
+        self._emit_instr("addiu", "$sp", "$sp", "8")
         self._emit_instr("jr", "$ra")
         
         # String.length
         self._emit_label(f"{METHOD_PREFIX}String_length")
+        # Save $ra before calling _Object_copy
+        self._emit_instr("addiu", "$sp", "$sp", "-8")
+        self._emit_instr("sw", "$ra", "4($sp)")
         self._emit_instr("lw", "$t0", "12($a0)")  # Get length field
+        self._emit_instr("sw", "$t0", "0($sp)")   # Save length on stack
         # Create Int object
-        self._emit_instr("move", "$t1", "$t0")
         self._emit_instr("la", "$a0", f"{CLASS_PROTOBJ_PREFIX}Int")
         self._emit_instr("jal", "_Object_copy")
-        self._emit_instr("sw", "$t1", "12($a0)")
+        self._emit_instr("lw", "$t0", "0($sp)")   # Restore length
+        self._emit_instr("sw", "$t0", "12($a0)")  # Store in Int object
+        # Restore $ra and return
+        self._emit_instr("lw", "$ra", "4($sp)")
+        self._emit_instr("addiu", "$sp", "$sp", "8")
         self._emit_instr("jr", "$ra")
         
         # String.concat - simplified
         self._emit_label(f"{METHOD_PREFIX}String_concat")
         self._emit_instr("jr", "$ra")  # Return self for now
         
-        # String.substr - simplified
+        # String.substr(i: Int, l: Int) -> String
+        # $a0 = self (String), $a1 = i (Int object), $a2 = l (Int object)
+        # String layout: [tag, size, disp, length, chars...]
         self._emit_label(f"{METHOD_PREFIX}String_substr")
-        self._emit_instr("jr", "$ra")  # Return self for now
+        self._emit_instr("addiu", "$sp", "$sp", "-20")
+        self._emit_instr("sw", "$ra", "16($sp)")
+        self._emit_instr("sw", "$a0", "12($sp)")  # Save self
+        self._emit_instr("lw", "$t0", "12($a1)")  # i value from Int object
+        self._emit_instr("sw", "$t0", "8($sp)")   # Save i
+        self._emit_instr("lw", "$t1", "12($a2)")  # l value from Int object
+        self._emit_instr("sw", "$t1", "4($sp)")   # Save l
+        
+        # Allocate new String: 16 header + l + 1 null, rounded to 4
+        self._emit_instr("addiu", "$t2", "$t1", "20")  # 16 + l + 1 + 3
+        self._emit_instr("li", "$t3", "-4")
+        self._emit_instr("and", "$a0", "$t2", "$t3")   # Round down to 4
+        self._emit_instr("sw", "$a0", "0($sp)")   # Save size
+        self._emit_instr("li", "$v0", "9")        # sbrk
+        self._emit_instr("syscall")
+        self._emit_instr("move", "$a0", "$v0")    # New String object
+        
+        # Fill header
+        self._emit_instr("li", "$t0", "4")        # String tag
+        self._emit_instr("sw", "$t0", "0($a0)")
+        self._emit_instr("lw", "$t0", "0($sp)")   # Size
+        self._emit_instr("sw", "$t0", "4($a0)")
+        self._emit_instr("la", "$t0", f"{CLASS_DISPTAB_PREFIX}String")
+        self._emit_instr("sw", "$t0", "8($a0)")
+        self._emit_instr("lw", "$t0", "4($sp)")   # l
+        self._emit_instr("sw", "$t0", "12($a0)")  # Length
+        
+        # Copy l chars from self starting at i
+        self._emit_instr("lw", "$t1", "12($sp)")  # self
+        self._emit_instr("addiu", "$t1", "$t1", "16")  # Point to chars
+        self._emit_instr("lw", "$t2", "8($sp)")   # i
+        self._emit_instr("add", "$t1", "$t1", "$t2")   # src = self.chars + i
+        self._emit_instr("addiu", "$t2", "$a0", "16")  # dest = new.chars
+        self._emit_instr("lw", "$t3", "4($sp)")   # l (counter)
+        self._emit_label("_substr_copy_loop")
+        self._emit_instr("blez", "$t3", "_substr_copy_done")
+        self._emit_instr("lb", "$t4", "0($t1)")
+        self._emit_instr("sb", "$t4", "0($t2)")
+        self._emit_instr("addiu", "$t1", "$t1", "1")
+        self._emit_instr("addiu", "$t2", "$t2", "1")
+        self._emit_instr("addiu", "$t3", "$t3", "-1")
+        self._emit_instr("j", "_substr_copy_loop")
+        self._emit_label("_substr_copy_done")
+        self._emit_instr("sb", "$zero", "0($t2)")  # Null terminate
+        
+        # Return new string (already in $a0)
+        self._emit_instr("lw", "$ra", "16($sp)")
+        self._emit_instr("addiu", "$sp", "$sp", "20")
+        self._emit_instr("jr", "$ra")
         
         self._emit_blank()
     
@@ -1243,16 +1384,16 @@ class MIPSCodeGenerator:
         # Evaluate left
         self._generate_expr(left)
         self._emit_instr("lw", "$t0", "12($a0)")  # Get int value
-        self._emit_instr("sw", "$t0", "0($sp)")
         self._emit_instr("addiu", "$sp", "$sp", "-4")
+        self._emit_instr("sw", "$t0", "0($sp)")
         
         # Evaluate right
         self._generate_expr(right)
         self._emit_instr("lw", "$t1", "12($a0)")  # Get int value
         
         # Pop left
-        self._emit_instr("addiu", "$sp", "$sp", "4")
         self._emit_instr("lw", "$t0", "0($sp)")
+        self._emit_instr("addiu", "$sp", "$sp", "4")
         
         # Perform operation
         if op == "div":
@@ -1292,16 +1433,16 @@ class MIPSCodeGenerator:
         # Evaluate left
         self._generate_expr(left)
         self._emit_instr("lw", "$t0", "12($a0)")
-        self._emit_instr("sw", "$t0", "0($sp)")
         self._emit_instr("addiu", "$sp", "$sp", "-4")
+        self._emit_instr("sw", "$t0", "0($sp)")
         
         # Evaluate right
         self._generate_expr(right)
         self._emit_instr("lw", "$t1", "12($a0)")
         
         # Pop left
-        self._emit_instr("addiu", "$sp", "$sp", "4")
         self._emit_instr("lw", "$t0", "0($sp)")
+        self._emit_instr("addiu", "$sp", "$sp", "4")
         
         # Compare
         if op == "sle":
@@ -1317,17 +1458,16 @@ class MIPSCodeGenerator:
         """Generate equality test."""
         # Evaluate left
         self._generate_expr(left)
-        self._emit_instr("move", "$a1", "$a0")
-        self._emit_instr("sw", "$a1", "0($sp)")
         self._emit_instr("addiu", "$sp", "$sp", "-4")
+        self._emit_instr("sw", "$a0", "0($sp)")
         
         # Evaluate right
         self._generate_expr(right)
         self._emit_instr("move", "$a1", "$a0")
         
         # Pop left
-        self._emit_instr("addiu", "$sp", "$sp", "4")
         self._emit_instr("lw", "$a0", "0($sp)")
+        self._emit_instr("addiu", "$sp", "$sp", "4")
         
         # Call equality test
         self._emit_instr("jal", "_equality_test")

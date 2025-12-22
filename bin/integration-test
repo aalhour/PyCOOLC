@@ -69,13 +69,17 @@ declare -a TESTS=(
     "arith.cl|NONE|number 0 is even"
     "life.cl|NONE|Welcome to the Game of Life"
     
+    # Partial output (crashes later due to complex features)
+    "primes.cl|NONE|2 is trivially prime"
+    
+    # Fully verified with input
+    "palindrome.cl|aba|that was a palindrome"
+    
     # Interactive - no output before requiring input
     "cells.cl|NONE|COMPILE_ONLY"
     "cool.cl|NONE|COMPILE_ONLY"
     "graph.cl|NONE|COMPILE_ONLY"
     "hairyscary.cl|NONE|COMPILE_ONLY"
-    "palindrome.cl|NONE|COMPILE_ONLY"
-    "primes.cl|NONE|COMPILE_ONLY"
     "sort_list.cl|NONE|COMPILE_ONLY"
 )
 
@@ -175,11 +179,11 @@ run_with_spim() {
         timeout_cmd="gtimeout $timeout_seconds"
     fi
     
-    # Run SPIM with "run" command piped to stdin
+    # Run SPIM - it auto-runs with -file, so we just pipe stdin for the program
     if [ "$stdin_input" = "NONE" ]; then
-        echo "run" | $timeout_cmd $SPIM -file "$asm_file" 2>&1 || true
+        $timeout_cmd $SPIM -file "$asm_file" </dev/null 2>&1 || true
     else
-        printf "run\n%s\n" "$stdin_input" | $timeout_cmd $SPIM -file "$asm_file" 2>&1 || true
+        printf "%s\n" "$stdin_input" | $timeout_cmd $SPIM -file "$asm_file" 2>&1 || true
     fi
 }
 

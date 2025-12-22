@@ -25,7 +25,6 @@ A BNF-based specification of **COOL**'s Context-Free Grammar can be found at [/d
   * [References](#references)
   * [License](#license)
 
-
 ## Language features
 
   * Primitive Data Types:
@@ -46,7 +45,6 @@ A BNF-based specification of **COOL**'s Context-Free Grammar can be found at [/d
     + While Loops
   * Automatic Memory Management:
     + Garbage Collection (planned)
-
 
 ## Project overview
 
