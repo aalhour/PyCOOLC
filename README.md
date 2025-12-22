@@ -17,12 +17,15 @@ A BNF-based specification of **COOL**'s Context-Free Grammar can be found at [/d
   * [Development Status](#dev-status).
   * [Installation](#installation).
     + [Requirements](#requirements).
+    + [Installing SPIM](#installing-spim).
     + [Installing from Source](#installing-from-source).
     + [Installing from PyPI](#installing-from-pypi).
   * [Usage](#usage).
     + [Standalone](#standalone).
     + [Python Module](#python-module).
+    + [Makefile Targets](#makefile-targets).
   * [Language Features](#language-features).
+  * [Testing](#testing).
   * [Literature](#literature).
   * [License](#license)
 
@@ -41,51 +44,118 @@ Compiler Frontend consists of the following three stages:
  
   1. Lexical Analysis (see: [`lexer.py`](/pycoolc/lexer.py)): regex-based tokenizer.
   2. Syntax Analysis (see: [`parser.py`](/pycoolc/parser.py)): an LALR(1) parser.
-  3. Semantic Analysis (see: [`semanalyser.py`](/pycoolc/semanalyser.py)).
+  3. Semantic Analysis (see: [`semanalyser.py`](/pycoolc/semanalyser.py)): type checking, scope analysis, inheritance validation.
 
-Compiler Backend consists of the following two stages:
+Compiler Backend consists of the following stages:
 
-  * Code Optimization.
-  * Code Generation:
+  * Code Optimization (see: [`optimization/`](/pycoolc/optimization/)):
+    + Data flow framework with lattice-based analysis.
+    + Constant propagation and folding.
+    + Liveness analysis and dead code elimination.
+  * Intermediate Representation (see: [`ir/`](/pycoolc/ir/)):
+    + Three-Address Code (TAC) representation.
+    + Control Flow Graph (CFG) construction.
+    + Dominance analysis for SSA.
+  * Code Generation (see: [`codegen.py`](/pycoolc/codegen.py)):
     + Targets the MIPS 32-bit architecture.
-    + Models an SRSM (Single-Register Stack Machine).
+    + Object layout with class tags, dispatch tables, and prototype objects.
+    + Runtime support for built-in methods (Object, IO, String).
 
-### Example Scenario:
+### How It Works:
 
-A typical compilation scenario would start by the user calling the compiler driver (see: [`pycoolc.py`](/pycoolc/pycoolc.py)) passing to it one or more COOL program files. The compiler starts off by parsing the source code of all program files, lexical analysis, as a stage, is driven by the parser. The parser returns an Abstract Syntax Tree (see: [`ast.py`](/pycoolc/ast.py)) representation of the program(s) if parsing finished successfully, otherwise the compilation process is terminated and errors reported back the user. The compiler driver then initiates the Semantic Analysis stage, out of which the AST representation will be further modified. If any errors where found during this stage, the compilation process will be terminated with all errors reported back. The driver goes on with compilation process, entering the Code Optimization stage where the AST is optimized and dead code is eliminated, after which the Code Generation stage follows, emitting executable MIPS 32-bit assembly code.
+COOL Program:
+
+```cool
+class Main inherits IO {
+   main(): Object { out_string("Hello!\n") };
+};
+```
+
+1. **Lexer** → `CLASS`, `TYPE(Main)`, `INHERITS`, `TYPE(IO)`, `{`, ...
+2. **Parser** → AST with `Program → Class → ClassMethod`
+3. **Semantic Analysis** → Type-checks `out_string` call, resolves `IO` inheritance
+4. **Code Generation** → MIPS assembly with dispatch to `IO.out_string`
 
 
 ## DEV. STATUS
 
 Each Compiler stage and Runtime feature is designed as a separate component that can be used standalone or as a Python module, the following is the development status of each one:
 
-| Compiler Stage     | Python Module                         | Issue(s)                                                | Status                      |
-|:-------------------|:--------------------------------------|:--------------------------------------------------------|:----------------------------|
-| Lexical Analysis   | [`lexer.py`](/pycoolc/lexer.py)       | [#2](https://git.io/vr1gx)                              | :white_check_mark: **done** |
-| Parsing            | [`parser.py`](/pycoolc/parser.py)     | [#3](https://git.io/vr12k)                              | :white_check_mark: **done** |
-| Semantic Analysis  | [`semanalyser.py`](/pycoolc/semanalyser.py) | [#4](https://git.io/vr12O)                        | *in progress*               |
-| Optimization       | -                                     | [#5](https://git.io/vr1Vd), [#11](https://git.io/vKHuH) | -                           | 
-| Code Generation    | -                                     | [#6](https://git.io/vr1VA)                              | -                           |
-| Garbage Collection | -                                     | [#8](https://git.io/vof6z)                              | -                           |
+| Compiler Stage     | Python Module                               | Status                      |
+|:-------------------|:--------------------------------------------|:----------------------------|
+| Lexical Analysis   | [`lexer.py`](/pycoolc/lexer.py)             | :white_check_mark: **done** |
+| Parsing            | [`parser.py`](/pycoolc/parser.py)           | :white_check_mark: **done** |
+| Semantic Analysis  | [`semanalyser.py`](/pycoolc/semanalyser.py) | :white_check_mark: **done** |
+| Optimization       | [`optimization/`](/pycoolc/optimization/)   | :white_check_mark: **done** | 
+| Code Generation    | [`codegen.py`](/pycoolc/codegen.py)         | :white_check_mark: **done** |
+| Garbage Collection | -                                           | :construction: planned      |
 
 
 ## INSTALLATION
 
 ### Requirements
 
- * Python >= 3.5
- * SPIM - MIPS 32-bit Assembly Simulator: [@Homepage](http://spimsimulator.sourceforge.net), [@SourceForge](https://sourceforge.net/projects/spimsimulator/files/).
+ * Python >= 3.12
+ * SPIM - MIPS 32-bit Assembly Simulator (see: [Installing SPIM](#installing-spim)).
  * All Python packages listed in: [`requirements.txt`](requirements.txt).
+
+### Installing SPIM
+
+SPIM is a self-contained simulator that runs MIPS32 programs. You'll need it to execute the compiled assembly output.
+
+**Download:** Get the latest version from [SourceForge](https://sourceforge.net/projects/spimsimulator/files/).
+
+**macOS:**
+
+```bash
+# Download and install QtSpim
+curl -LO https://sourceforge.net/projects/spimsimulator/files/QtSpim_9.1.24_mac.mpkg.zip
+unzip QtSpim_9.1.24_mac.mpkg.zip
+open QtSpim_9.1.24_mac.mpkg
+
+# Or use the command-line spim (if installed via homebrew or from source)
+brew install spim  # if available
+```
+
+**Linux (Debian/Ubuntu):**
+
+```bash
+# Download the .deb package
+wget https://sourceforge.net/projects/spimsimulator/files/qtspim_9.1.24_linux64.deb
+sudo dpkg -i qtspim_9.1.24_linux64.deb
+```
+
+**Windows:**
+
+Download `QtSpim_9.1.24_Windows.msi` from [SourceForge](https://sourceforge.net/projects/spimsimulator/files/QtSpim_9.1.24_Windows.msi/download) and run the installer.
 
 ### Installing from Source
 
+```bash
+# Clone the repository
+git clone https://github.com/aalhour/pycoolc.git
+cd pycoolc
+
+# Create and activate virtual environment
+python3 -m venv .venv
+source .venv/bin/activate
+
+# Install dependencies and the package
+pip install -e .
 ```
-python3 setup.py install
+
+Or use the Makefile:
+
+```bash
+make venv
+source .venv/bin/activate
 ```
 
 ### Installing from PyPI
 
-_Coming soon..._
+```bash
+pip install pycoolc
+```
 
 
 ## USAGE
@@ -113,7 +183,27 @@ pycoolc hello_world.cl --outfile helloWorldAsm.s
 Run the compiled program (MIPS machine code) with the SPIM simulator:
 
 ```bash
-spim helloWorldAsm.s
+spim -file helloWorldAsm.s
+```
+
+Or with QtSpim (GUI):
+
+```bash
+qtspim helloWorldAsm.s
+```
+
+Skip code generation (type-check only):
+
+```bash
+pycoolc hello_world.cl --no-codegen
+```
+
+View intermediate representations:
+
+```bash
+pycoolc hello_world.cl --tokens     # Show lexer output
+pycoolc hello_world.cl --ast        # Show parsed AST
+pycoolc hello_world.cl --semantics  # Show typed AST
 ```
 
 
@@ -122,15 +212,41 @@ spim helloWorldAsm.s
 ```python
 from pycoolc.lexer import make_lexer
 from pycoolc.parser import make_parser
+from pycoolc.semanalyser import make_semantic_analyser
+from pycoolc.codegen import make_code_generator
 
+# Lexical analysis
 lexer = make_lexer()
 lexer.input(a_cool_program_source_code_str)
 for token in lexer:
     print(token)
-    
+
+# Parsing
 parser = make_parser()
-parsing_result = parser.parse(a_cool_program_source_code_str)
-print(parsing_result)
+ast = parser.parse(a_cool_program_source_code_str)
+print(ast)
+
+# Semantic analysis
+analyzer = make_semantic_analyser()
+typed_ast = analyzer.transform(ast)
+
+# Code generation
+codegen = make_code_generator(analyzer)
+mips_code = codegen.generate(typed_ast)
+print(mips_code)
+```
+
+
+### Makefile Targets
+
+```bash
+make help              # Show all available targets
+make venv              # Create virtual environment
+make install           # Install package in development mode
+make unit-tests        # Run unit tests
+make integration-test  # Run integration tests with SPIM
+make test              # Run all tests
+make clean             # Clean build artifacts
 ```
 
 
@@ -153,7 +269,23 @@ print(parsing_result)
     + If/Then/Else.
     + While Loops.
   * Automatic Memory Management:
-    + Garbage Collection.
+    + Garbage Collection (planned).
+
+
+## TESTING
+
+PyCOOLC has comprehensive test coverage across all compiler phases:
+
+```bash
+# Run all unit tests
+make unit-tests
+
+# Run integration tests (requires SPIM)
+make integration-test
+
+# Run everything
+make test
+```
 
 
 ## LITERATURE
@@ -168,4 +300,3 @@ print(parsing_result)
 This project is licensed under the [MIT License](LICENSE).
 
 All copyrights of the files and documents under the [/docs](/docs) directory belong to their original owners.
-
