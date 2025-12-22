@@ -381,12 +381,13 @@ class TestTempGenerator:
         assert t2.index == 2
 
     def test_new_label(self):
-        gen = TempGenerator()
+        from pycoolc.ir.tac import LabelGenerator
+        gen = LabelGenerator()
         l0 = gen.new_label("if")
         l1 = gen.new_label("if")
         
-        assert l0.name == "if0"
-        assert l1.name == "if1"
+        assert l0.name == "if_0"
+        assert l1.name == "if_1"
 
     def test_reset(self):
         gen = TempGenerator()

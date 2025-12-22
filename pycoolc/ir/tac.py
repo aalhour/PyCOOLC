@@ -829,23 +829,63 @@ class TempGenerator:
     """
     
     def __init__(self) -> None:
-        self._next_temp = 0
-        self._next_label = 0
+        self._counter = 0
     
-    def new_temp(self) -> Temp:
+    def next(self) -> Temp:
         """Generate a fresh temporary."""
-        temp = Temp(self._next_temp)
-        self._next_temp += 1
+        temp = Temp(self._counter)
+        self._counter += 1
         return temp
     
-    def new_label(self, prefix: str = "L") -> Label:
-        """Generate a fresh label."""
-        label = Label(f"{prefix}{self._next_label}")
-        self._next_label += 1
-        return label
+    # Alias for compatibility
+    new_temp = next
     
     def reset(self) -> None:
-        """Reset counters (for testing)."""
-        self._next_temp = 0
-        self._next_label = 0
+        """Reset counter (for testing)."""
+        self._counter = 0
+
+
+class LabelGenerator:
+    """
+    Generates unique label names.
+    
+    Used during AST-to-IR translation to create labels
+    for control flow.
+    """
+    
+    def __init__(self) -> None:
+        self._counter = 0
+    
+    def next(self, hint: str = "") -> Label:
+        """Generate a fresh label with optional hint prefix."""
+        prefix = hint if hint else "L"
+        label = Label(f"{prefix}_{self._counter}")
+        self._counter += 1
+        return label
+    
+    # Alias for compatibility
+    new_label = next
+    
+    def reset(self) -> None:
+        """Reset counter (for testing)."""
+        self._counter = 0
+
+
+@dataclass(slots=True)
+class Comment(Instruction):
+    """
+    A comment in the TAC code.
+    
+    Comments are for debugging and don't generate code.
+    """
+    text: str
+    
+    def __str__(self) -> str:
+        return f"# {self.text}"
+    
+    def defs(self) -> set[Operand]:
+        return set()
+    
+    def uses(self) -> set[Operand]:
+        return set()
 
