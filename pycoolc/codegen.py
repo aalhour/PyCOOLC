@@ -251,8 +251,12 @@ class MIPSCodeGenerator:
             case AST.Case(expr=case_expr, actions=actions):
                 self._collect_constants_from_expr(case_expr)
                 for action in actions:
+                    # Actions can be either Action objects or tuples (name, type, body)
                     if isinstance(action, AST.Action):
                         self._collect_constants_from_expr(action.body)
+                    elif isinstance(action, tuple) and len(action) == 3:
+                        _, _, body = action
+                        self._collect_constants_from_expr(body)
             
             case AST.DynamicDispatch(instance=obj, arguments=args):
                 self._collect_constants_from_expr(obj)
@@ -1013,8 +1017,11 @@ class MIPSCodeGenerator:
     def _generate_string_literal(self, value: str) -> None:
         """Generate a String object for a literal."""
         if value not in self.string_constants:
-            label = f"{STRING_CONST_PREFIX}{len(self.string_constants)}"
-            self.string_constants[value] = StringConstant(label=label, value=value, length=len(value))
+            # This should never happen - all constants should be collected first
+            raise RuntimeError(
+                f"String constant not collected during first pass: {value!r}. "
+                f"This indicates a bug in _collect_constants_from_expr."
+            )
         
         const = self.string_constants[value]
         self._emit_instr("la", "$a0", const.label)
@@ -1104,11 +1111,12 @@ class MIPSCodeGenerator:
     
     def _generate_bool_object(self, value_reg: str) -> None:
         """Create a Bool object with value in register."""
+        false_label = self._new_label("bool_false")
         done = self._new_label("bool_done")
-        self._emit_instr("beqz", value_reg, "_bool_obj_false")
+        self._emit_instr("beqz", value_reg, false_label)
         self._emit_instr("la", "$a0", "_bool_const_true")
         self._emit_instr("j", done)
-        self._emit_label("_bool_obj_false")
+        self._emit_label(false_label)
         self._emit_instr("la", "$a0", "_bool_const_false")
         self._emit_label(done)
     
@@ -1337,8 +1345,8 @@ class MIPSCodeGenerator:
         # Evaluate arguments (in reverse order for stack)
         for arg in reversed(args):
             self._generate_expr(arg)
-            self._emit_instr("sw", "$a0", "0($sp)")
             self._emit_instr("addiu", "$sp", "$sp", "-4")
+            self._emit_instr("sw", "$a0", "0($sp)")
         
         # Evaluate object
         self._generate_expr(obj)
@@ -1368,9 +1376,10 @@ class MIPSCodeGenerator:
         self._emit_instr("lw", "$t1", f"{method_offset}($t0)")
         
         # Set up arguments in registers
+        # Arguments are pushed in reverse order, so arg[0] is at top of stack
         for i, _ in enumerate(args):
             if i < 3:
-                self._emit_instr("lw", f"$a{i + 1}", f"{(len(args) - i) * 4}($sp)")
+                self._emit_instr("lw", f"$a{i + 1}", f"{i * 4}($sp)")
         
         self._emit_instr("jalr", "$t1")
         
