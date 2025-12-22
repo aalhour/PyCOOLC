@@ -56,14 +56,14 @@ SKIPPED=0
 # Expected output is a grep pattern to match against SPIM output
 
 declare -a TESTS=(
-    # Simple output test - verified working
+    # Simple output tests - verified working
     "hello_world.cl|NONE|Hello, World."
+    "io.cl|NONE|A: Hello world"
+    "complex.cl|NONE|=)"
+    "new_complex.cl|NONE|=)"
+    "book_list.cl|NONE|title:"
     
-    # Programs that compile but need runtime fixes - mark as COMPILE_ONLY for now
-    "io.cl|NONE|COMPILE_ONLY"
-    "complex.cl|NONE|COMPILE_ONLY"
-    "new_complex.cl|NONE|COMPILE_ONLY"
-    "book_list.cl|NONE|COMPILE_ONLY"
+    # Lambda calculus - complex output, just compile
     "lam.cl|NONE|COMPILE_ONLY"
     
     # Interactive programs - compile only (need user input)
