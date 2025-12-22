@@ -1,1 +1,6 @@
-ply==3.9
+# Runtime dependencies
+ply>=3.11
+
+# Development dependencies
+pytest>=8.0
+pytest-cov>=4.0
