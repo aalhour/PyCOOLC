@@ -1,7 +1,7 @@
 # PyCOOLC Makefile
 # A COOL to MIPS compiler written in Python
 
-.PHONY: help venv install clean unit-tests integration-test test lint typecheck ci-full examples
+.PHONY: help venv install clean clean-venv clean-all unit-tests integration-test test lint typecheck ci-full test-coverage examples run-hello
 
 # Default target
 .DEFAULT_GOAL := help
@@ -71,6 +71,10 @@ typecheck: ## Run type checker (mypy)
 	fi
 
 ci-full: lint typecheck unit-tests ## Run CI pipeline (lint, typecheck, unit tests)
+
+test-coverage: ## Generates code coverage report from unit-tests
+	@echo "$(CYAN)Generating code coverage report...$(RESET)"
+	$(PYTEST) --cov=pycoolc tests/
 
 ##@ Examples
 
