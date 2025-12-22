@@ -36,30 +36,33 @@ A BNF-based specification of **COOL**'s Context-Free Grammar can be found at [/d
 
 ### Architecture:
 
-PyCOOLC follows classical compiler architecture, it consists mainly of the infamous two logical components: Frontend and Backend.
+PyCOOLC follows classical compiler architecture with Frontend and Backend components:
 
-The flow of compilation goes from Frontend to Backend, passing through the stages in every component.
+```mermaid
+flowchart LR
+    subgraph Frontend
+        A[Source .cl] --> B[Lexer]
+        B --> |tokens| C[Parser]
+        C --> |AST| D[Semantic Analysis]
+    end
+    
+    subgraph Backend
+        D --> |typed AST| E[IR Builder]
+        E --> |TAC| F[Optimizer]
+        F --> |optimized TAC| G[Code Generator]
+    end
+    
+    G --> H[MIPS .s]
+```
 
-Compiler Frontend consists of the following three stages:
- 
-  1. Lexical Analysis (see: [`lexer.py`](/pycoolc/lexer.py)): regex-based tokenizer.
-  2. Syntax Analysis (see: [`parser.py`](/pycoolc/parser.py)): an LALR(1) parser.
-  3. Semantic Analysis (see: [`semanalyser.py`](/pycoolc/semanalyser.py)): type checking, scope analysis, inheritance validation.
-
-Compiler Backend consists of the following stages:
-
-  * Code Optimization (see: [`optimization/`](/pycoolc/optimization/)):
-    + Data flow framework with lattice-based analysis.
-    + Constant propagation and folding.
-    + Liveness analysis and dead code elimination.
-  * Intermediate Representation (see: [`ir/`](/pycoolc/ir/)):
-    + Three-Address Code (TAC) representation.
-    + Control Flow Graph (CFG) construction.
-    + Dominance analysis for SSA.
-  * Code Generation (see: [`codegen.py`](/pycoolc/codegen.py)):
-    + Targets the MIPS 32-bit architecture.
-    + Object layout with class tags, dispatch tables, and prototype objects.
-    + Runtime support for built-in methods (Object, IO, String).
+| Stage | Module | Description |
+|-------|--------|-------------|
+| Lexer | [`lexer.py`](/pycoolc/lexer.py) | Regex-based tokenizer |
+| Parser | [`parser.py`](/pycoolc/parser.py) | LALR(1) parser, builds AST |
+| Semantic Analysis | [`semanalyser.py`](/pycoolc/semanalyser.py) | Type checking, scope analysis, inheritance |
+| IR Builder | [`ir/`](/pycoolc/ir/) | Three-Address Code, Control Flow Graph, SSA |
+| Optimizer | [`optimization/`](/pycoolc/optimization/) | Constant propagation, liveness, dead code elimination |
+| Code Generator | [`codegen.py`](/pycoolc/codegen.py) | MIPS 32-bit with dispatch tables and runtime |
 
 ### How It Works:
 
@@ -168,10 +171,16 @@ Help and usage information:
 pycoolc --help
 ```
 
-Compile a cool program:
+Compile a COOL program:
 
 ```bash
 pycoolc hello_world.cl
+```
+
+Compile multiple files together (classes can reference each other):
+
+```bash
+pycoolc atoi.cl atoi_test.cl -o atoi_test.s
 ```
 
 Specify a custom name for the compiled output program:
