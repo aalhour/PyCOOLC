@@ -45,6 +45,7 @@ Features:
     extras_require={
         'dev': [
             'pytest>=7.0',
+            'mypy>=1.0',
         ],
     },
 )

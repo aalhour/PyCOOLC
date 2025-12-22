@@ -46,4 +46,3 @@ jobs:
         run: |
           python -m py_compile pycoolc/*.py
           python -m py_compile pycoolc/**/*.py
-
