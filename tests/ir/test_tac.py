@@ -397,4 +397,218 @@ class TestTempGenerator:
         
         t = gen.new_temp()
         assert t.index == 0
+    
+    def test_label_generator_reset(self):
+        from pycoolc.ir.tac import LabelGenerator
+        gen = LabelGenerator()
+        gen.new_label()
+        gen.new_label()
+        gen.reset()
+        
+        lbl = gen.new_label("test")
+        assert lbl.name == "test_0"
+    
+    def test_label_generator_default_prefix(self):
+        from pycoolc.ir.tac import LabelGenerator
+        gen = LabelGenerator()
+        lbl = gen.next()
+        
+        assert lbl.name == "L_0"
+
+
+class TestTACProgram:
+    """Tests for TACProgram."""
+    
+    def test_str_empty(self):
+        from pycoolc.ir.tac import TACProgram
+        prog = TACProgram()
+        s = str(prog)
+        
+        assert "TAC Program" in s
+    
+    def test_str_with_constants(self):
+        from pycoolc.ir.tac import TACProgram
+        prog = TACProgram(
+            string_constants={"hello": "str_0", "world\n": "str_1"}
+        )
+        s = str(prog)
+        
+        assert "String Constants:" in s
+        assert "str_0" in s
+        assert "hello" in s
+    
+    def test_str_with_methods(self):
+        from pycoolc.ir.tac import TACProgram
+        prog = TACProgram(
+            methods=[
+                TACMethod(
+                    class_name="Main",
+                    method_name="main",
+                    params=[],
+                    instructions=[Return(Const(0, "Int"))],
+                )
+            ]
+        )
+        s = str(prog)
+        
+        assert "Main.main" in s
+    
+    def test_get_method_found(self):
+        from pycoolc.ir.tac import TACProgram
+        method = TACMethod(
+            class_name="Main",
+            method_name="main",
+            params=[],
+            instructions=[],
+        )
+        prog = TACProgram(methods=[method])
+        
+        found = prog.get_method("Main", "main")
+        assert found is method
+    
+    def test_get_method_not_found(self):
+        from pycoolc.ir.tac import TACProgram
+        prog = TACProgram()
+        
+        found = prog.get_method("Main", "main")
+        assert found is None
+
+
+class TestComment:
+    """Tests for Comment instruction."""
+    
+    def test_str(self):
+        from pycoolc.ir.tac import Comment
+        c = Comment("This is a comment")
+        assert str(c) == "# This is a comment"
+    
+    def test_defs_empty(self):
+        from pycoolc.ir.tac import Comment
+        c = Comment("Test")
+        assert c.defs() == set()
+    
+    def test_uses_empty(self):
+        from pycoolc.ir.tac import Comment
+        c = Comment("Test")
+        assert c.uses() == set()
+
+
+class TestInstructionMethods:
+    """Tests for Instruction base class methods."""
+    
+    def test_is_jump_default_false(self):
+        # Regular instruction should return False
+        instr = Copy(dest=Temp(0), source=Const(1, "Int"))
+        assert not instr.is_jump()
+    
+    def test_is_label_default_false(self):
+        # Regular instruction should return False
+        instr = Copy(dest=Temp(0), source=Const(1, "Int"))
+        assert not instr.is_label()
+    
+    def test_jump_targets_default_empty(self):
+        # Regular instruction has no jump targets
+        instr = Copy(dest=Temp(0), source=Const(1, "Int"))
+        assert instr.jump_targets() == []
+    
+    def test_jump_is_jump_true(self):
+        # Jump instruction should return True for is_jump
+        instr = Jump(target=Label("L0"))
+        assert instr.is_jump()
+    
+    def test_jump_targets_returns_target(self):
+        # Jump instruction returns its target
+        instr = Jump(target=Label("L0"))
+        targets = instr.jump_targets()
+        assert Label("L0") in targets
+    
+    def test_label_instr_is_label_true(self):
+        # LabelInstr should return True for is_label
+        instr = LabelInstr(Label("L0"))
+        assert instr.is_label()
+
+
+class TestAdditionalInstructions:
+    """Additional tests for instruction coverage."""
+    
+    def test_dispatch_with_none_dest(self):
+        instr = Dispatch(
+            dest=None,
+            obj=Var("self"),
+            method="foo",
+            num_args=0,
+        )
+        s = str(instr)
+        assert "self.foo" in s
+        assert instr.defs() == set()
+    
+    def test_static_dispatch_with_none_dest(self):
+        instr = StaticDispatch(
+            dest=None,
+            obj=Var("self"),
+            static_type="IO",
+            method="out_string",
+            num_args=1,
+        )
+        s = str(instr)
+        assert "self@IO.out_string" in s
+        assert instr.defs() == set()
+    
+    def test_call_with_none_dest(self):
+        instr = Call(
+            dest=None,
+            target="func",
+            num_args=2,
+        )
+        s = str(instr)
+        assert "call func" in s
+        assert instr.defs() == set()
+    
+    def test_dispatch_uses(self):
+        instr = Dispatch(
+            dest=Temp(0),
+            obj=Var("obj"),
+            method="foo",
+            num_args=1,
+        )
+        uses = instr.uses()
+        assert Var("obj") in uses
+    
+    def test_static_dispatch_uses(self):
+        instr = StaticDispatch(
+            dest=Temp(0),
+            obj=Var("obj"),
+            static_type="Base",
+            method="foo",
+            num_args=1,
+        )
+        uses = instr.uses()
+        assert Var("obj") in uses
+    
+    def test_get_attr_uses(self):
+        instr = GetAttr(
+            dest=Temp(0),
+            obj=Var("self"),
+            attr="x",
+        )
+        uses = instr.uses()
+        assert Var("self") in uses
+    
+    def test_set_attr_uses(self):
+        instr = SetAttr(
+            obj=Var("self"),
+            attr="x",
+            value=Temp(0),
+        )
+        uses = instr.uses()
+        assert Var("self") in uses
+        assert Temp(0) in uses
+    
+    def test_cond_jump_not_is_jump(self):
+        instr = CondJumpNot(
+            condition=Var("cond"),
+            target=Label("L0"),
+        )
+        assert instr.is_jump()
+        assert Label("L0") in instr.jump_targets()
 
