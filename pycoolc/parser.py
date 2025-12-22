@@ -4,7 +4,8 @@
 # parser.py
 #
 # Author:       Ahmad Alhour (aalhour.com).
-# Date:         July 13th, 2016.
+# Written:      July 2016
+# Patched:      Dec 2025
 # Description:  The Parser module. Implements syntax analysis and parsing rules
 #               of the COOL CFG.
 # -----------------------------------------------------------------------------
@@ -326,40 +327,49 @@ class PyCoolParser:
         parse[0] = AST.WhileLoop(predicate=parse[2], body=parse[4])
 
     # ######################### LET EXPRESSIONS ########################################
+    #
+    # COOL Manual: let <id1> : <type1> [<- <expr1>], ..., <idn> : <typen> [<- <exprn>] in <body>
+    # This desugars to nested Let nodes: Let(id1, type1, expr1, Let(id2, type2, expr2, ... body))
+    #
 
     def p_expression_let(self, parse):
         """
-         expression : let_expression
+        expression : LET let_bindings IN expression
         """
-        parse[0] = parse[1]
+        # Build nested Let from bindings list (right to left)
+        # bindings is a list of (name, type, init_expr) tuples
+        bindings = parse[2]
+        body = parse[4]
+        
+        # Build from innermost to outermost
+        for name, type_name, init_expr in reversed(bindings):
+            body = AST.Let(instance=name, return_type=type_name, init_expr=init_expr, body=body)
+        
+        parse[0] = body
 
-    def p_expression_let_simple(self, parse):
+    def p_let_bindings_single(self, parse):
         """
-        let_expression : LET ID COLON TYPE IN expression
-                       | nested_lets COMMA LET ID COLON TYPE
+        let_bindings : let_binding
         """
-        parse[0] = AST.Let(instance=parse[2], return_type=parse[4], init_expr=None, body=parse[6])
+        parse[0] = [parse[1]]
 
-    def p_expression_let_initialized(self, parse):
+    def p_let_bindings_multiple(self, parse):
         """
-        let_expression : LET ID COLON TYPE ASSIGN expression IN expression
-                       | nested_lets COMMA LET ID COLON TYPE ASSIGN expression
+        let_bindings : let_bindings COMMA let_binding
         """
-        parse[0] = AST.Let(instance=parse[2], return_type=parse[4], init_expr=parse[6], body=parse[8])
+        parse[0] = parse[1] + [parse[3]]
 
-    def p_inner_lets_simple(self, parse):
+    def p_let_binding_simple(self, parse):
         """
-        nested_lets : ID COLON TYPE IN expression
-                    | nested_lets COMMA ID COLON TYPE
+        let_binding : ID COLON TYPE
         """
-        parse[0] = AST.Let(instance=parse[1], return_type=parse[3], init_expr=None, body=parse[5])
+        parse[0] = (parse[1], parse[3], None)
 
-    def p_inner_lets_initialized(self, parse):
+    def p_let_binding_initialized(self, parse):
         """
-        nested_lets : ID COLON TYPE ASSIGN expression IN expression
-                    | nested_lets COMMA ID COLON TYPE ASSIGN expression
+        let_binding : ID COLON TYPE ASSIGN expression
         """
-        parse[0] = AST.Let(instance=parse[1], return_type=parse[3], init_expr=parse[5], body=parse[7])
+        parse[0] = (parse[1], parse[3], parse[5])
 
     # ######################### CASE EXPRESSION ########################################
 

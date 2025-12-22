@@ -323,6 +323,50 @@ class TestLetExpressions:
         assert expr.init_expr is not None
         assert isinstance(expr.init_expr, AST.Integer)
 
+    def test_multi_binding_let(self, parser):
+        """Test let with multiple comma-separated bindings."""
+        result = parser.parse("""
+            class Main {
+                foo() : Int {
+                    let x : Int <- 1, y : Int <- 2, z : Int <- 3 in
+                        x + y + z
+                };
+            };
+        """)
+        # Should produce nested Let nodes
+        let1 = result.classes[0].features[0].body
+        assert isinstance(let1, AST.Let)
+        assert let1.instance == "x"
+        assert let1.return_type == "Int"
+        
+        let2 = let1.body
+        assert isinstance(let2, AST.Let)
+        assert let2.instance == "y"
+        
+        let3 = let2.body
+        assert isinstance(let3, AST.Let)
+        assert let3.instance == "z"
+        
+        # Innermost body should be the addition
+        assert isinstance(let3.body, AST.Addition)
+
+    def test_multi_binding_let_mixed_init(self, parser):
+        """Test let with mix of initialized and uninitialized bindings."""
+        result = parser.parse("""
+            class Main {
+                foo() : Int {
+                    let x : Int, y : Int <- 2 in y
+                };
+            };
+        """)
+        let1 = result.classes[0].features[0].body
+        assert let1.instance == "x"
+        assert let1.init_expr is None
+        
+        let2 = let1.body
+        assert let2.instance == "y"
+        assert let2.init_expr is not None
+
 
 class TestCaseExpressions:
     """Tests for case expression parsing."""
