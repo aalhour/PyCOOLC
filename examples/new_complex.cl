@@ -22,11 +22,11 @@ class Complex inherits IO {
     y : Int;
 
     init(a : Int, b : Int) : Complex {
-	{
-	    x = a;
-	    y = b;
-	    self;
-	}
+		{
+			x <- a;
+			y <- b;
+			self;
+		}
     };
 
     print() : Object {
@@ -37,43 +37,45 @@ class Complex inherits IO {
     };
 
     reflect_0() : Complex {
-	{
-	    x = ~x;
-	    y = ~y;
-	    self;
-	}
+		{
+			x <- ~x;
+			y <- ~y;
+			self;
+		}
     };
 
     reflect_X() : Complex {
-	{
-	    y = ~y;
-	    self;
-	}
+		{
+			y <- ~y;
+			self;
+		}
     };
 
     reflect_Y() : Complex {
 	{
-	    x = ~x;
+	    x <- ~x;
 	    self;
 	}
     };
 
     equal(d : Complex) : Bool {
-	if x = d.x_value()
-	then
-	    if y = d.y_value()
-	    then true
-	    else false
-	    fi
-	else false
-	fi
+		if x = d.x_value()
+			then
+	    		if y = d.y_value()
+	    			then true
+	    		else
+					false
+	    		fi
+			else
+				false
+		fi
     };
 
     x_value() : Int {
-	x
+		x
     };
 
     y_value() : Int {
-	y
+		y
     };
 };
