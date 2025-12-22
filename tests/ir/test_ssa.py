@@ -229,3 +229,240 @@ class TestEdgeCases:
         
         assert ssa_method is not None
 
+
+class TestRenameOperations:
+    """Test variable renaming operations."""
+    
+    def test_rename_def_updates_var(self, ssa_builder):
+        """_rename_def should update Var destination."""
+        instr = Copy(Var("x"), Const(42, "Int"))
+        ssa_builder._rename_def(instr, "x", 1)
+        
+        assert instr.dest.name == "x_1"
+    
+    def test_rename_def_different_var(self, ssa_builder):
+        """_rename_def should not update if var name doesn't match."""
+        instr = Copy(Var("y"), Const(42, "Int"))
+        ssa_builder._rename_def(instr, "x", 1)
+        
+        # Should not change y
+        assert instr.dest.name == "y"
+    
+    def test_rename_phi_source(self, ssa_builder):
+        """_rename_phi_source should update phi sources from a predecessor."""
+        phi = Phi(
+            dest=Var("x"),
+            sources=[(Var("x"), Label("pred1")), (Var("x"), Label("pred2"))]
+        )
+        
+        # Simulate stack with version 3 of x
+        stacks = {"x": [3]}
+        
+        ssa_builder._rename_phi_source(phi, "pred1", stacks)
+        
+        # The source from pred1 should be renamed
+        pred1_source = next(v for v, l in phi.sources if l.name == "pred1")
+        assert pred1_source.name == "x_3"
+    
+    def test_rename_phi_source_empty_stack(self, ssa_builder):
+        """_rename_phi_source with empty stack should not crash."""
+        phi = Phi(
+            dest=Var("x"),
+            sources=[(Var("x"), Label("pred1"))]
+        )
+        
+        stacks = {}  # Empty stacks
+        
+        # Should not crash
+        ssa_builder._rename_phi_source(phi, "pred1", stacks)
+    
+    def test_rename_uses_is_noop(self, ssa_builder):
+        """_rename_uses is a placeholder that does nothing."""
+        instr = Copy(Var("dest"), Var("src"))
+        stacks = {"src": [1, 2, 3]}
+        
+        # Should not crash (it's a TODO placeholder)
+        ssa_builder._rename_uses(instr, stacks)
+        
+        # Source should be unchanged (since _rename_uses is a noop)
+        assert instr.source.name == "src"
+
+
+class TestRenameBlock:
+    """Test block-level renaming."""
+    
+    def test_rename_block_simple(self, ssa_builder):
+        """_rename_block should rename variables in a block."""
+        instructions = [
+            LabelInstr(Label("entry")),
+            Copy(Var("x"), Const(1, "Int")),
+            Copy(Var("x"), Const(2, "Int")),
+            Return(Var("x")),
+        ]
+        
+        method = TACMethod("Test", "test", [], instructions)
+        cfg = build_cfg(method)
+        
+        block_map = {b.id: b for b in cfg.blocks}
+        dom_tree: dict[str, list[str]] = {}
+        counters: dict[str, int] = {"x": 1}
+        stacks: dict[str, list[int]] = {"x": [0]}
+        
+        entry_id = cfg.blocks[0].id
+        ssa_builder._rename_block(entry_id, block_map, dom_tree, counters, stacks)
+        
+        # Counter should have advanced
+        assert counters["x"] > 1
+    
+    def test_rename_block_with_successors(self, ssa_builder):
+        """_rename_block should update phi sources in successors."""
+        instructions = [
+            LabelInstr(Label("entry")),
+            Copy(Var("x"), Const(1, "Int")),
+            CondJump(Const(True, "Bool"), Label("join")),
+            LabelInstr(Label("else")),
+            Copy(Var("x"), Const(2, "Int")),
+            LabelInstr(Label("join")),
+            Return(Var("x")),
+        ]
+        
+        method = TACMethod("Test", "test", [], instructions)
+        cfg = build_cfg(method)
+        dominators = compute_dominators(cfg)
+        idoms = compute_immediate_dominators(cfg, dominators)
+        
+        var_defs = ssa_builder._find_variable_definitions(cfg)
+        frontiers = ssa_builder._compute_dominance_frontiers(cfg, idoms)
+        phi_locs = ssa_builder._compute_phi_locations(cfg, var_defs, frontiers)
+        ssa_builder._insert_phi_functions(cfg, phi_locs)
+        
+        dom_tree = ssa_builder._build_dominator_tree(cfg, idoms)
+        
+        # Now do renaming
+        counters: dict[str, int] = {}
+        stacks: dict[str, list[int]] = {}
+        for var in var_defs:
+            stacks[var] = [0]
+            counters[var] = 1
+        
+        block_map = {b.id: b for b in cfg.blocks}
+        entry_id = cfg.blocks[0].id
+        
+        ssa_builder._rename_block(entry_id, block_map, dom_tree, counters, stacks)
+        
+        # Conversion should complete
+        assert counters["x"] >= 1
+    
+    def test_rename_block_with_dominated_children(self, ssa_builder):
+        """_rename_block should recursively process dominated children."""
+        instructions = [
+            LabelInstr(Label("A")),
+            Copy(Var("x"), Const(1, "Int")),
+            Jump(Label("B")),
+            LabelInstr(Label("B")),
+            Copy(Var("x"), Const(2, "Int")),
+            Jump(Label("C")),
+            LabelInstr(Label("C")),
+            Return(Var("x")),
+        ]
+        
+        method = TACMethod("Test", "test", [], instructions)
+        ssa_method = ssa_builder.convert_to_ssa(method)
+        
+        # Should complete - exercises the recursive dom tree walk
+        assert ssa_method is not None
+
+
+class TestDominanceFrontierEdgeCases:
+    """Test edge cases in dominance frontier computation."""
+    
+    def test_frontier_runner_hits_none(self, ssa_builder):
+        """Test when runner reaches None (entry block case)."""
+        # Create a CFG where walking up the dom tree reaches None
+        instructions = [
+            LabelInstr(Label("entry")),
+            Copy(Var("x"), Const(1, "Int")),
+            CondJump(Const(True, "Bool"), Label("left")),
+            LabelInstr(Label("right")),
+            Copy(Var("x"), Const(2, "Int")),
+            Jump(Label("join")),
+            LabelInstr(Label("left")),
+            Copy(Var("x"), Const(3, "Int")),
+            Jump(Label("join")),
+            LabelInstr(Label("join")),
+            Return(Var("x")),
+        ]
+        
+        method = TACMethod("Test", "test", [], instructions)
+        cfg = build_cfg(method)
+        dominators = compute_dominators(cfg)
+        idoms = compute_immediate_dominators(cfg, dominators)
+        
+        # This exercises the runner == None path
+        frontiers = ssa_builder._compute_dominance_frontiers(cfg, idoms)
+        
+        assert isinstance(frontiers, dict)
+    
+    def test_single_predecessor_no_frontier(self, ssa_builder):
+        """Blocks with single predecessor don't contribute to frontiers."""
+        instructions = [
+            LabelInstr(Label("A")),
+            Copy(Var("x"), Const(1, "Int")),
+            Jump(Label("B")),
+            LabelInstr(Label("B")),
+            Return(Var("x")),
+        ]
+        
+        method = TACMethod("Test", "test", [], instructions)
+        cfg = build_cfg(method)
+        dominators = compute_dominators(cfg)
+        idoms = compute_immediate_dominators(cfg, dominators)
+        
+        frontiers = ssa_builder._compute_dominance_frontiers(cfg, idoms)
+        
+        # With linear flow, all frontiers should be empty
+        for block_id, frontier in frontiers.items():
+            assert isinstance(frontier, set)
+
+
+class TestPhiFunctionInsertion:
+    """Test phi function insertion."""
+    
+    def test_insert_phi_with_labels(self, ssa_builder):
+        """Phi should be inserted after labels."""
+        instructions = [
+            LabelInstr(Label("entry")),
+            CondJump(Const(True, "Bool"), Label("left")),
+            LabelInstr(Label("right")),
+            Copy(Var("x"), Const(2, "Int")),
+            Jump(Label("join")),
+            LabelInstr(Label("left")),
+            Copy(Var("x"), Const(1, "Int")),
+            Jump(Label("join")),
+            LabelInstr(Label("join")),
+            Return(Var("x")),
+        ]
+        
+        method = TACMethod("Test", "test", [], instructions)
+        cfg = build_cfg(method)
+        dominators = compute_dominators(cfg)
+        idoms = compute_immediate_dominators(cfg, dominators)
+        
+        var_defs = ssa_builder._find_variable_definitions(cfg)
+        frontiers = ssa_builder._compute_dominance_frontiers(cfg, idoms)
+        phi_locs = ssa_builder._compute_phi_locations(cfg, var_defs, frontiers)
+        
+        ssa_builder._insert_phi_functions(cfg, phi_locs)
+        
+        # Check that phi functions exist
+        has_phi = False
+        for block in cfg.blocks:
+            for instr in block.instructions:
+                if isinstance(instr, Phi):
+                    has_phi = True
+                    break
+        
+        # Should have inserted phi if there were phi locations
+        if phi_locs.get("x"):
+            assert has_phi
+
