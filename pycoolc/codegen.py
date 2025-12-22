@@ -643,10 +643,23 @@ class MIPSCodeGenerator:
     
     def _emit_class_name_strings(self) -> None:
         """Emit string constants for class names (for type_name)."""
-        for class_name in self.class_info:
-            label = f"_class_name_{class_name}"
-            self._emit(f"{label}:")
+        # Emit String objects for each class name
+        for class_name, info in self.class_info.items():
+            name_len = len(class_name)
+            self._emit_label(f"_class_name_{class_name}")
+            self._emit(f"    .word {self.class_tags[STRING_CLASS]}")  # String tag
+            self._emit(f"    .word {OBJECT_HEADER_SIZE + WORD_SIZE + name_len + 1}")  # Size
+            self._emit(f"    .word {CLASS_DISPTAB_PREFIX}{STRING_CLASS}")  # Dispatch
+            self._emit(f"    .word {name_len}")  # Length
             self._emit(f'    .asciiz "{class_name}"')
+            self._emit("    .align 2")
+        
+        # Emit lookup table: class_tag -> class_name_string
+        self._emit_label("_class_name_table")
+        # Emit in tag order (0 = Object, 1 = IO, 2 = Int, 3 = Bool, 4 = String, then user classes)
+        sorted_classes = sorted(self.class_info.items(), key=lambda x: x[1].tag)
+        for class_name, info in sorted_classes:
+            self._emit(f"    .word _class_name_{class_name}")
     
     def _emit_dispatch_tables(self) -> None:
         """Emit dispatch tables for all classes."""
@@ -912,11 +925,13 @@ class MIPSCodeGenerator:
         self._emit_instr("li", "$v0", "10")  # Exit syscall
         self._emit_instr("syscall")
         
-        # Object.type_name
+        # Object.type_name - returns String with class name
         self._emit_label(f"{METHOD_PREFIX}Object_type_name")
         self._emit_instr("lw", "$t0", "0($a0)")  # Get class tag
-        # Would need a table lookup here - simplified for now
-        self._emit_instr("la", "$a0", "_str_const_empty")  # Return empty string
+        self._emit_instr("sll", "$t0", "$t0", "2")  # Multiply by 4 (word size)
+        self._emit_instr("la", "$t1", "_class_name_table")
+        self._emit_instr("add", "$t0", "$t0", "$t1")  # Address in table
+        self._emit_instr("lw", "$a0", "0($t0)")  # Load String object pointer
         self._emit_instr("jr", "$ra")
         
         # Object.copy - already defined as _Object_copy
