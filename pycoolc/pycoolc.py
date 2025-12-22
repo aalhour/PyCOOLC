@@ -1,165 +1,225 @@
 #!/usr/bin/env python3
 
 # -----------------------------------------------------------------------------
-# parser.py
+# pycoolc.py
 #
 # Author:       Ahmad Alhour (aalhour.com).
-# Date:         TODO
+# Date:         2016
 # Description:  The Compiler driver. Drives the whole compilation process.
 # -----------------------------------------------------------------------------
 
-# std
-import argparse
+from __future__ import annotations
 
-# compiler stages
+import argparse
+import sys
+from pathlib import Path
+
 from pycoolc.lexer import make_lexer
 from pycoolc.parser import make_parser
 from pycoolc.semanalyser import make_semantic_analyser
-
-# compiler utils
+from pycoolc.codegen import make_code_generator
 from pycoolc.utils import print_readable_ast
 
 
-def create_arg_parser():
-    """
-    Returns an ArgumentParser instance.
-    """
-    arg_parser = argparse.ArgumentParser(prog="pycoolc")
+def create_arg_parser() -> argparse.ArgumentParser:
+    """Create and return the command-line argument parser."""
+    arg_parser = argparse.ArgumentParser(
+        prog="pycoolc",
+        description="PyCOOLC - A COOL to MIPS compiler written in Python",
+    )
 
-    # Cool program(s) source file(s)
+    # Cool program source file(s)
     arg_parser.add_argument(
         "cool_program",
-        type=str, nargs="+",
-        help="One or more cool program source code files ending with *.cl extension; space separated.")
+        type=str,
+        nargs="+",
+        help="One or more COOL source files (*.cl)",
+    )
 
     # Output file argument
     arg_parser.add_argument(
         "-o", "--outfile",
-        type=str, action="store", nargs=1, default=None,
-        help="Desired name of the output compiled assembly program.")
-    
-    # Print tokens argument
-    arg_parser.add_argument(
-        "--tokens", 
-        action="store_true", default=False,
-        help="Displays the result of lexical analysis of the input program(s) on stdout.")
+        type=str,
+        default=None,
+        help="Output file name for the compiled MIPS assembly",
+    )
 
-    # Print AST argument
+    # Debug flags
     arg_parser.add_argument(
-        "--ast", 
-        action="store_true", default=False,
-        help="Displays the result of syntax analysis (abstract syntax tree) of the input program(s) on stdout.")
-    
-    # Print semantic analysis result argument
+        "--tokens",
+        action="store_true",
+        help="Print the result of lexical analysis",
+    )
+
+    arg_parser.add_argument(
+        "--ast",
+        action="store_true",
+        help="Print the abstract syntax tree after parsing",
+    )
+
     arg_parser.add_argument(
         "--semantics",
-        action="store_true", default=False,
-        help="Displays the result of semantic analysis of the input program(s) to stdout.")
-    
-    # Print optimized IR argument
+        action="store_true",
+        help="Print the AST after semantic analysis",
+    )
+
     arg_parser.add_argument(
-        "--optimizations",
-        action="store_true", default=False,
-        help="Runs the compiler up-to the level of Optimization stage and displays the optimized IR on stdout.")
+        "--no-codegen",
+        action="store_true",
+        help="Skip code generation (useful for type checking only)",
+    )
 
     return arg_parser
 
 
-def lexical_analysis(program, print_results=True):
-    """
-    TODO
-    :param program: TODO
-    :param print_results: TODO
-    :return: TODO
-    """
+def lexical_analysis(source: str, print_results: bool = True) -> list:
+    """Run lexical analysis on source code."""
     lexer = make_lexer()
-    lexer.input(program)
-    result = []
+    lexer.input(source)
+    tokens = list(lexer)
     if print_results:
-        for token in lexer:
-            result.append(token)
+        for token in tokens:
             print(token)
-    return result
+    return tokens
 
 
-def syntax_analysis(program, print_results=True):
-    """
-    TODO
-    :param program: TODO
-    :param print_results: TODO
-    :return: TODO
-    """
+def syntax_analysis(source: str, print_results: bool = True):
+    """Run syntax analysis (parsing) on source code."""
     parser = make_parser()
-    result = parser.parse(program)
+    ast = parser.parse(source)
+    if print_results:
+        print_readable_ast(ast)
+    return ast
+
+
+def semantic_analysis(ast, print_results: bool = True):
+    """Run semantic analysis on the AST."""
+    analyzer = make_semantic_analyser()
+    result = analyzer.transform(ast)
     if print_results:
         print_readable_ast(result)
-    return result
+    return result, analyzer
 
 
-def semantic_analysis(program, print_results=True):
-    """
-    TODO
-    :param program: TODO
-    :param print_results: TODO
-    :return: TODO
-    """
-    semanter = make_semantic_analyser()
-    program_ir = semanter.transform(program)
-    if print_results:
-        print_readable_ast(program_ir)
-    return program_ir
-
-
-def main():
-    """
-    Compiler entry point.
-    """
-    # Create an ArgumentParser instance.
-    arg_parser = create_arg_parser()
-
-    # Parse command line arguments.
-    args = arg_parser.parse_args()
-    programs = args.cool_program
-
-    # Initialize the master program source code string.
-    cool_program_code = ""
+def code_generation(ast, analyzer, output_file: str | None = None) -> str:
+    """Generate MIPS assembly from the analyzed AST."""
+    codegen = make_code_generator(analyzer)
+    code = codegen.generate(ast)
     
-    # Check all programs have the *.cl extension.
-    for program in programs:
-        if not str(program).endswith(".cl"):
-            print("Cool program files must end with a \`.cl\` extension.\r\n")
-            arg_parser.print_usage()
-            exit(1)
+    if output_file:
+        with open(output_file, "w", encoding="utf-8") as f:
+            f.write(code)
+        print(f"Generated {output_file}")
+    
+    return code
 
-    # Read all programs source codes and store it in memory.
-    for program in programs:
+
+def compile_program(
+    source: str,
+    output_file: str | None = None,
+    print_tokens: bool = False,
+    print_ast: bool = False,
+    print_semantics: bool = False,
+    skip_codegen: bool = False,
+) -> str | None:
+    """
+    Compile a COOL program to MIPS assembly.
+    
+    Args:
+        source: COOL source code.
+        output_file: Path to write the output assembly.
+        print_tokens: Print lexer output.
+        print_ast: Print parser output.
+        print_semantics: Print semantic analysis output.
+        skip_codegen: Skip code generation phase.
+    
+    Returns:
+        The generated MIPS assembly, or None if skipping codegen.
+    """
+    if print_tokens:
+        print("# " + "=" * 40)
+        print("# Lexical Analysis")
+        print("# " + "=" * 40)
+        lexical_analysis(source)
+        print()
+    
+    if print_ast:
+        print("# " + "=" * 40)
+        print("# Syntax Analysis (AST)")
+        print("# " + "=" * 40)
+        syntax_analysis(source)
+        print()
+    
+    # Parse
+    parser = make_parser()
+    ast = parser.parse(source)
+    
+    if ast is None:
+        print("Error: Parsing failed", file=sys.stderr)
+        return None
+    
+    # Semantic analysis
+    if print_semantics:
+        print("# " + "=" * 40)
+        print("# Semantic Analysis")
+        print("# " + "=" * 40)
+    
+    analyzed_ast, analyzer = semantic_analysis(ast, print_results=print_semantics)
+    
+    if print_semantics:
+        print()
+    
+    if skip_codegen:
+        return None
+    
+    # Code generation
+    return code_generation(analyzed_ast, analyzer, output_file)
+
+
+def main() -> int:
+    """Compiler entry point."""
+    arg_parser = create_arg_parser()
+    args = arg_parser.parse_args()
+    
+    # Validate input files
+    source_files = args.cool_program
+    for program in source_files:
+        if not program.endswith(".cl"):
+            print(f"Error: COOL files must have .cl extension: {program}", file=sys.stderr)
+            return 1
+    
+    # Read all source files
+    source_code = ""
+    for program in source_files:
         try:
-            with open(program, encoding="utf-8") as file:
-                cool_program_code += file.read()
-        except (IOError, FileNotFoundError):
-            print("Error! File \"{0}\" was not found. Are you sure the file exists?".format(program))
-        except Exception:
-            print("An unexpected error occurred!")
-
-    # If the user asked for the list of tokens, run lexical analysis
-    if args.tokens:
-        print("{bar}\r\n# Running Lexical Analysis...\r\n{bar}".format(
-            bar="# ==========================="))
-        lexical_analysis(cool_program_code)
-
-    # If the user asked for the AST repr, run syntax analysis
-    if args.ast:
-        print("{bar}\r\n# Running Syntax Analysis...\r\n{bar}".format(
-            bar="# =========================="))
-        syntax_analysis(cool_program_code)
-
-    # If the user asked for the semantics, run semantic analysis
-    if args.semantics:
-        print("{bar}\r\n# Running Semantic Analysis...\r\n{bar}".format(
-            bar="# ============================"))
-        semantic_analysis(syntax_analysis(cool_program_code, False))
+            source_code += Path(program).read_text(encoding="utf-8")
+        except FileNotFoundError:
+            print(f"Error: File not found: {program}", file=sys.stderr)
+            return 1
+        except Exception as e:
+            print(f"Error reading {program}: {e}", file=sys.stderr)
+            return 1
+    
+    # Determine output file name
+    output_file = args.outfile
+    if output_file is None and not args.no_codegen:
+        # Default: first input file with .s extension
+        output_file = source_files[0].replace(".cl", ".s")
+    
+    try:
+        compile_program(
+            source=source_code,
+            output_file=output_file,
+            print_tokens=args.tokens,
+            print_ast=args.ast,
+            print_semantics=args.semantics,
+            skip_codegen=args.no_codegen,
+        )
+        return 0
+    except Exception as e:
+        print(f"Compilation error: {e}", file=sys.stderr)
+        return 1
 
 
 if __name__ == "__main__":
-    main()
-
+    sys.exit(main())
