@@ -814,3 +814,200 @@ class TestTypeChecking:
         result = analyzer.transform(ast)
         assert isinstance(result, AST.Program)
 
+
+class TestAdditionalTypeChecking:
+    """Additional tests for edge cases in type checking."""
+
+    def test_subtraction_type_check(self, parser, analyzer):
+        """Subtraction requires Int operands."""
+        ast = parser.parse("""
+            class Main {
+                main() : Int { 5 - 3 };
+            };
+        """)
+        result = analyzer.transform(ast)
+        assert isinstance(result, AST.Program)
+
+    def test_division_type_check(self, parser, analyzer):
+        """Division requires Int operands."""
+        ast = parser.parse("""
+            class Main {
+                main() : Int { 10 / 2 };
+            };
+        """)
+        result = analyzer.transform(ast)
+        assert isinstance(result, AST.Program)
+
+    def test_less_than_or_equal_type_check(self, parser, analyzer):
+        """LessThanOrEqual requires Int operands."""
+        ast = parser.parse("""
+            class Main {
+                main() : Bool { 3 <= 5 };
+            };
+        """)
+        result = analyzer.transform(ast)
+        assert isinstance(result, AST.Program)
+
+    def test_assignment_to_attribute(self, parser, analyzer):
+        """Assignment to a class attribute."""
+        ast = parser.parse("""
+            class Main {
+                x : Int <- 0;
+                main() : Int {
+                    x <- 42
+                };
+            };
+        """)
+        result = analyzer.transform(ast)
+        assert isinstance(result, AST.Program)
+
+    def test_assignment_type_mismatch(self, parser, analyzer):
+        """Assignment with incompatible type."""
+        ast = parser.parse("""
+            class Main {
+                x : Int <- 0;
+                main() : String {
+                    x <- "hello"
+                };
+            };
+        """)
+        with pytest.raises(SemanticAnalysisError, match="Cannot assign.*type 'String'.*type 'Int'"):
+            analyzer.transform(ast)
+
+    def test_assignment_undefined_variable(self, parser, analyzer):
+        """Assignment to undefined variable."""
+        ast = parser.parse("""
+            class Main {
+                main() : Int {
+                    undefined_var <- 42
+                };
+            };
+        """)
+        with pytest.raises(SemanticAnalysisError, match="Undefined variable 'undefined_var'"):
+            analyzer.transform(ast)
+
+    def test_equality_primitive_type_mismatch(self, parser, analyzer):
+        """Equality between Int and String is not allowed."""
+        ast = parser.parse("""
+            class Main {
+                main() : Bool { 42 = "hello" };
+            };
+        """)
+        with pytest.raises(SemanticAnalysisError, match="Cannot compare 'Int' with 'String'"):
+            analyzer.transform(ast)
+
+    def test_equality_bool_with_int(self, parser, analyzer):
+        """Equality between Bool and Int is not allowed."""
+        ast = parser.parse("""
+            class Main {
+                main() : Bool { true = 1 };
+            };
+        """)
+        with pytest.raises(SemanticAnalysisError, match="Cannot compare 'Bool' with 'Int'"):
+            analyzer.transform(ast)
+
+    def test_integer_complement_wrong_type(self, parser, analyzer):
+        """Integer complement on non-Int."""
+        ast = parser.parse("""
+            class Main {
+                main() : Int { ~true };
+            };
+        """)
+        with pytest.raises(SemanticAnalysisError, match="Integer complement.*requires Int.*got 'Bool'"):
+            analyzer.transform(ast)
+
+    def test_boolean_complement_wrong_type(self, parser, analyzer):
+        """Boolean complement on non-Bool."""
+        ast = parser.parse("""
+            class Main {
+                main() : Bool { not 42 };
+            };
+        """)
+        with pytest.raises(SemanticAnalysisError, match="Boolean complement.*requires Bool.*got 'Int'"):
+            analyzer.transform(ast)
+
+    def test_new_undefined_class(self, parser, analyzer):
+        """New with undefined class name."""
+        ast = parser.parse("""
+            class Main {
+                main() : Object { new UndefinedClass };
+            };
+        """)
+        with pytest.raises(SemanticAnalysisError, match="Cannot instantiate undefined class 'UndefinedClass'"):
+            analyzer.transform(ast)
+
+    def test_isvoid_expression(self, parser, analyzer):
+        """isvoid expression returns Bool."""
+        ast = parser.parse("""
+            class Main {
+                main() : Bool { isvoid self };
+            };
+        """)
+        result = analyzer.transform(ast)
+        assert isinstance(result, AST.Program)
+
+    def test_static_dispatch_valid(self, parser, analyzer):
+        """Valid static dispatch."""
+        ast = parser.parse("""
+            class Main inherits IO {
+                main() : Object {
+                    self@IO.out_string("hello")
+                };
+            };
+        """)
+        result = analyzer.transform(ast)
+        assert isinstance(result, AST.Program)
+
+    def test_static_dispatch_invalid_type(self, parser, analyzer):
+        """Static dispatch with non-supertype."""
+        ast = parser.parse("""
+            class Foo { };
+            class Main {
+                main() : Object {
+                    self@Foo.abort()
+                };
+            };
+        """)
+        with pytest.raises(SemanticAnalysisError, match="Static dispatch type 'Foo' is not a supertype"):
+            analyzer.transform(ast)
+
+    def test_arithmetic_left_operand_wrong_type(self, parser, analyzer):
+        """Arithmetic with non-Int left operand."""
+        ast = parser.parse("""
+            class Main {
+                main() : Int { "hello" + 5 };
+            };
+        """)
+        with pytest.raises(SemanticAnalysisError, match="Left operand of '\\+' must be Int.*got 'String'"):
+            analyzer.transform(ast)
+
+    def test_arithmetic_right_operand_wrong_type(self, parser, analyzer):
+        """Arithmetic with non-Int right operand."""
+        ast = parser.parse("""
+            class Main {
+                main() : Int { 5 + "hello" };
+            };
+        """)
+        with pytest.raises(SemanticAnalysisError, match="Right operand of '\\+' must be Int.*got 'String'"):
+            analyzer.transform(ast)
+
+    def test_comparison_left_operand_wrong_type(self, parser, analyzer):
+        """Comparison with non-Int left operand."""
+        ast = parser.parse("""
+            class Main {
+                main() : Bool { "hello" < 5 };
+            };
+        """)
+        with pytest.raises(SemanticAnalysisError, match="Left operand of '<' must be Int.*got 'String'"):
+            analyzer.transform(ast)
+
+    def test_comparison_right_operand_wrong_type(self, parser, analyzer):
+        """Comparison with non-Int right operand."""
+        ast = parser.parse("""
+            class Main {
+                main() : Bool { 5 < "hello" };
+            };
+        """)
+        with pytest.raises(SemanticAnalysisError, match="Right operand of '<' must be Int.*got 'String'"):
+            analyzer.transform(ast)
+
