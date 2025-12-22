@@ -1,0 +1,23 @@
+#!/bin/bash
+# Run deadcode for finding unused Python code
+# Uses Docker with Python 3.12 since deadcode doesn't support Python 3.13+
+
+# Check if docker is available and running
+if ! command -v docker &> /dev/null; then
+    echo "⚠️  Docker not found - skipping deadcode analysis"
+    echo "   Install Docker or use Python 3.10-3.12 to run deadcode directly"
+    exit 0
+fi
+
+if ! docker info &> /dev/null; then
+    echo "⚠️  Docker daemon not running - skipping deadcode analysis"
+    echo "   Start Docker or use Python 3.10-3.12 to run deadcode directly"
+    exit 0
+fi
+
+# Run deadcode in a Python 3.12 container
+echo "Running deadcode in Python 3.12 container..."
+docker run --rm -v "$(pwd):/app" -w /app python:3.12-slim sh -c "
+    pip install --quiet deadcode>=2.4 && \
+    deadcode pycoolc/ $*
+"

@@ -46,6 +46,7 @@ Features:
         'dev': [
             'pytest>=7.0',
             'mypy>=1.0',
+            'deadcode>=2.4'
         ],
     },
 )

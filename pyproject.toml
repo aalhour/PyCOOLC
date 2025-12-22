@@ -29,6 +29,8 @@ dependencies = [
 dev = [
     "pytest>=8.0",
     "pytest-cov>=4.0",
+    "mypy>=1.0",
+    "deadcode>=2.4",
 ]
 
 [project.scripts]
@@ -56,3 +58,15 @@ exclude_lines = [
     "raise NotImplementedError",
 ]
 
+[tool.deadcode]
+exclude = ["venv", ".venv", "tests", "examples", "docs", "misc", "bin"]
+# PLY (Python Lex-Yacc) uses naming conventions for lexer/parser rules
+# These are called via introspection, not direct calls
+ignore_names = [
+    "t_*",              # PLY token rules
+    "p_*",              # PLY grammar rules  
+    "precedence",       # PLY precedence table
+    "reserved",         # PLY reserved words
+    "states",           # PLY lexer states
+    "t_ignore*",        # PLY ignore patterns
+]

@@ -1,7 +1,7 @@
 # PyCOOLC Makefile
 # A COOL to MIPS compiler written in Python
 
-.PHONY: help venv install clean clean-venv clean-all unit-tests integration-test test lint typecheck ci-full test-coverage examples run-hello
+.PHONY: help venv install clean clean-venv clean-all unit-tests integration-test test lint typecheck deadcode ci-full test-coverage examples run-hello
 
 # Default target
 .DEFAULT_GOAL := help
@@ -70,11 +70,15 @@ typecheck: ## Run type checker (mypy)
 		echo "$(YELLOW)mypy not installed. Run: pip install mypy$(RESET)"; \
 	fi
 
-ci-full: lint typecheck unit-tests ## Run CI pipeline (lint, typecheck, unit tests)
+deadcode: ## Find unused code (dry run, uses Docker for Python 3.12)
+	@echo "$(CYAN)Scanning for dead code...$(RESET)"
+	@./bin/run-deadcode --dry
 
 test-coverage: ## Generates code coverage report from unit-tests
 	@echo "$(CYAN)Generating code coverage report...$(RESET)"
 	$(PYTEST) --cov=pycoolc tests/
+
+ci-full: lint typecheck unit-tests ## Run CI pipeline (lint, typecheck, unit tests)
 
 ##@ Examples
 
