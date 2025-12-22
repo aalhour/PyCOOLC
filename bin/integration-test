@@ -32,9 +32,13 @@ OUTPUT_DIR="$PROJECT_ROOT/.integration-test-output"
 VERBOSE=false
 
 # Known issues - files that have known parser/semantic issues
-# atoi_test.cl - requires multi-file compilation (references A2I from atoi.cl)
-# lam.cl - uses multi-binding let which has a parser bug
-KNOWN_ISSUES="atoi_test.cl lam.cl"
+KNOWN_ISSUES=""
+
+# Files that require multi-file compilation (skip in single-file tests)
+MULTI_FILE_ONLY="atoi_test.cl"
+
+# Multi-file tests - format: "output_name:file1:file2:..."
+MULTI_FILE_TESTS="atoi_combined:atoi.cl:atoi_test.cl"
 
 # Parse arguments
 while [[ "$#" -gt 0 ]]; do
@@ -148,6 +152,12 @@ is_known_issue() {
     echo "$KNOWN_ISSUES" | grep -qw "$basename"
 }
 
+# Check if file requires multi-file compilation
+is_multi_file_only() {
+    local basename="$1"
+    echo "$MULTI_FILE_ONLY" | grep -qw "$basename"
+}
+
 # Test a single COOL program
 test_program() {
     local cool_file="$1"
@@ -161,6 +171,13 @@ test_program() {
     # Check for known issues first
     if is_known_issue "$basename.cl"; then
         echo -e "${YELLOW}KNOWN ISSUE${NC}"
+        SKIPPED=$((SKIPPED + 1))
+        return
+    fi
+    
+    # Check if this file requires multi-file compilation
+    if is_multi_file_only "$basename.cl"; then
+        echo -e "${YELLOW}MULTI-FILE${NC}"
         SKIPPED=$((SKIPPED + 1))
         return
     fi
@@ -231,6 +248,32 @@ run_tests() {
     for cool_file in "$EXAMPLES_DIR"/*.cl; do
         if [ -f "$cool_file" ]; then
             test_program "$cool_file"
+        fi
+    done
+    
+    echo ""
+    echo -e "${CYAN}Testing multi-file compilation...${NC}"
+    echo ""
+    
+    # Test multi-file compilation
+    for test_spec in $MULTI_FILE_TESTS; do
+        IFS=':' read -ra parts <<< "$test_spec"
+        local test_name="${parts[0]}"
+        local files=""
+        for ((i=1; i<${#parts[@]}; i++)); do
+            files="$files $EXAMPLES_DIR/${parts[$i]}"
+        done
+        
+        TOTAL=$((TOTAL + 1))
+        printf "  %-30s" "$test_name"
+        
+        local asm_file="$OUTPUT_DIR/$test_name.s"
+        if pycoolc $files -o "$asm_file" 2>/dev/null; then
+            echo -e "${GREEN}COMPILED${NC}"
+            PASSED=$((PASSED + 1))
+        else
+            echo -e "${RED}COMPILE FAILED${NC}"
+            FAILED=$((FAILED + 1))
         fi
     done
     
