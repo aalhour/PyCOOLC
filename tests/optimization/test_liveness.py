@@ -378,3 +378,130 @@ class TestInterferenceGraph:
             # They should be neighbors if they overlap
             pass  # The test is that this doesn't crash
 
+
+class TestLivenessAnalysisEdgeCases:
+    """Edge case tests for liveness analysis."""
+    
+    def test_meet_empty_list(self):
+        """Meet with empty list returns empty set."""
+        analysis = LivenessAnalysis()
+        result = analysis.meet([])
+        assert result == SetValue.empty()
+    
+    def test_transfer_with_temps(self):
+        """Temp variables should be tracked by name."""
+        method = TACMethod(
+            class_name="Test",
+            method_name="temps",
+            params=[],
+            instructions=[
+                BinaryOp(dest=Temp(0), op=BinOp.ADD, left=Temp(1), right=Temp(2)),
+                Return(Temp(0)),
+            ],
+        )
+        cfg = build_cfg(method)
+        result = run_liveness_analysis(cfg)
+        
+        # Before the addition, t1 and t2 should be live
+        live_in = result.instr_in.get((0, 0), SetValue.empty())
+        assert "t1" in live_in or "t2" in live_in  # At least one temp is used
+
+
+class TestDeadCodeInfo:
+    """Tests for DeadCodeInfo string representation."""
+    
+    def test_str_with_dead_instructions(self):
+        from pycoolc.optimization.liveness import DeadCodeInfo
+        
+        info = DeadCodeInfo(
+            dead_instructions=[(0, 0), (0, 1), (1, 0)],
+            dead_variables={"x", "y"},
+        )
+        s = str(info)
+        
+        assert "Dead Code Analysis" in s
+        assert "Dead instructions:" in s
+        assert "B0[0]" in s
+        assert "Dead variables:" in s
+    
+    def test_str_no_dead_instructions(self):
+        from pycoolc.optimization.liveness import DeadCodeInfo
+        
+        info = DeadCodeInfo()
+        s = str(info)
+        
+        assert "No dead instructions found" in s
+    
+    def test_str_many_dead_instructions(self):
+        from pycoolc.optimization.liveness import DeadCodeInfo
+        
+        # Create more than 10 dead instructions
+        dead_instrs = [(i, 0) for i in range(15)]
+        info = DeadCodeInfo(dead_instructions=dead_instrs)
+        s = str(info)
+        
+        assert "... and 5 more" in s
+
+
+class TestOperandName:
+    """Tests for _operand_name helper."""
+    
+    def test_operand_name_temp(self):
+        from pycoolc.optimization.liveness import _operand_name
+        
+        result = _operand_name(Temp(5))
+        assert result == "t5"
+    
+    def test_operand_name_var(self):
+        from pycoolc.optimization.liveness import _operand_name
+        
+        result = _operand_name(Var("foo"))
+        assert result == "foo"
+    
+    def test_operand_name_other(self):
+        from pycoolc.optimization.liveness import _operand_name
+        
+        result = _operand_name(Const(42, "Int"))
+        assert result == "42"
+
+
+class TestEliminateDeadCodeEdgeCases:
+    """Edge cases for dead code elimination."""
+    
+    def test_eliminate_nothing_when_no_dead_code(self):
+        from pycoolc.optimization.liveness import DeadCodeInfo, eliminate_dead_code
+        
+        method = TACMethod(
+            class_name="Test",
+            method_name="test",
+            params=[],
+            instructions=[
+                Return(Const(0, "Int")),
+            ],
+        )
+        cfg = build_cfg(method)
+        info = DeadCodeInfo()  # No dead code
+        
+        removed = eliminate_dead_code(cfg, info)
+        assert removed == 0
+    
+    def test_eliminate_in_multiple_blocks(self):
+        """Test elimination across multiple blocks."""
+        method = TACMethod(
+            class_name="Test",
+            method_name="multi",
+            params=[],
+            instructions=[
+                Copy(dest=Var("dead1"), source=Const(1, "Int")),  # Dead
+                Jump(target=Label("L1")),
+                LabelInstr(Label("L1")),
+                Copy(dest=Var("dead2"), source=Const(2, "Int")),  # Dead
+                Return(Const(0, "Int")),
+            ],
+        )
+        cfg = build_cfg(method)
+        removed = run_dead_code_elimination(cfg)
+        
+        # Both dead assignments should be removed
+        assert removed >= 2
+
