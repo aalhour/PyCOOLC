@@ -1,7 +1,7 @@
 # PyCOOLC Makefile
 # A COOL to MIPS compiler written in Python
 
-.PHONY: help venv install clean unit-tests integration-test test lint examples
+.PHONY: help venv install clean unit-tests integration-test test lint typecheck ci-full examples
 
 # Default target
 .DEFAULT_GOAL := help
@@ -57,9 +57,20 @@ integration-test: ## Run integration tests with SPIM
 
 test: unit-tests integration-test ## Run all tests (unit + integration)
 
-lint: ## Check for linter errors
-	@echo "$(CYAN)Checking for linter errors...$(RESET)"
-	$(PYTHON) -m py_compile pycoolc/*.py pycoolc/**/*.py
+lint: ## Check for syntax and type errors
+	@echo "$(CYAN)Checking for syntax errors...$(RESET)"
+	$(PYTHON) -m py_compile pycoolc/*.py pycoolc/**/*.py tests/*.py tests/**/*.py
+	@echo "$(GREEN)No syntax errors found!$(RESET)"
+
+typecheck: ## Run type checker (mypy)
+	@echo "$(CYAN)Running type checker...$(RESET)"
+	@if $(VENV_BIN)/python -c "import mypy" 2>/dev/null; then \
+		$(VENV_BIN)/mypy pycoolc/ --ignore-missing-imports; \
+	else \
+		echo "$(YELLOW)mypy not installed. Run: pip install mypy$(RESET)"; \
+	fi
+
+ci-full: lint typecheck unit-tests ## Run CI pipeline (lint, typecheck, unit tests)
 
 ##@ Examples
 
@@ -95,6 +106,7 @@ clean: ## Clean build artifacts and caches
 	rm -f examples/*.s
 	@echo "$(GREEN)Done!$(RESET)"
 
-clean-all: clean ## Clean everything including venv
+clean-venv: ## Clean the venv directory
 	rm -rf $(VENV)
 
+clean-all: clean clean-venv ## Clean everything including venv
