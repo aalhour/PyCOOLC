@@ -169,6 +169,135 @@ class MIPSCodeGenerator:
         # Local variable offsets from $fp
         self._locals: dict[str, int] = {}
         self._next_local_offset = 0
+        
+        # Local variable types for dispatch type resolution
+        self._local_types: dict[str, str] = {}
+        
+        # Self offset from $fp (depends on frame size)
+        self._self_offset = 0
+
+    def _get_expr_type(self, expr: AST.AST) -> str:
+        """
+        Get the static type of an expression for method dispatch.
+        
+        This is a simplified version of type inference for codegen purposes.
+        We only need to handle the cases that affect method lookup.
+        """
+        match expr:
+            case AST.Self():
+                return self._current_class
+            
+            case AST.Object(name=name):
+                # Check local variables first
+                if name in self._local_types:
+                    return self._local_types[name]
+                # Check attributes
+                info = self.class_info.get(self._current_class)
+                if info:
+                    for attr_name, attr_type in info.attributes:
+                        if attr_name == name:
+                            return attr_type
+                return OBJECT_CLASS
+            
+            case AST.NewObject(type=type_name):
+                return type_name if type_name != SELF_TYPE else self._current_class
+            
+            case AST.DynamicDispatch(instance=obj, method=method_name):
+                # Get the type of the object, then find the method return type
+                obj_type = self._get_expr_type(obj)
+                return_type = self._find_method_return_type(obj_type, method_name)
+                return return_type if return_type != SELF_TYPE else obj_type
+            
+            case AST.StaticDispatch(instance=obj, dispatch_type=dtype, method=method_name):
+                return_type = self._find_method_return_type(dtype, method_name)
+                return return_type if return_type != SELF_TYPE else self._get_expr_type(obj)
+            
+            case AST.Integer():
+                return INTEGER_CLASS
+            
+            case AST.String():
+                return STRING_CLASS
+            
+            case AST.Boolean():
+                return BOOLEAN_CLASS
+            
+            case _:
+                return OBJECT_CLASS
+    
+    def _find_method_return_type(self, class_name: str, method_name: str) -> str:
+        """Find the return type of a method in a class or its ancestors."""
+        if self.program is None:
+            return OBJECT_CLASS
+        
+        # Search up the inheritance chain
+        current = class_name
+        while current:
+            for klass in self.program.classes:
+                if klass.name == current:
+                    for feature in klass.features:
+                        if isinstance(feature, AST.ClassMethod) and feature.name == method_name:
+                            return feature.return_type
+                    # Move to parent
+                    current = klass.parent
+                    break
+            else:
+                # Class not found in program (might be builtin)
+                break
+        
+        # Check builtin methods
+        builtin_methods = {
+            ("Object", "abort"): OBJECT_CLASS,
+            ("Object", "copy"): SELF_TYPE,
+            ("Object", "type_name"): STRING_CLASS,
+            ("IO", "out_string"): SELF_TYPE,
+            ("IO", "out_int"): SELF_TYPE,
+            ("IO", "in_string"): STRING_CLASS,
+            ("IO", "in_int"): INTEGER_CLASS,
+            ("String", "length"): INTEGER_CLASS,
+            ("String", "concat"): STRING_CLASS,
+            ("String", "substr"): STRING_CLASS,
+        }
+        
+        # Check if method is inherited from a builtin
+        ancestors = self._get_ancestors(class_name)
+        for ancestor in ancestors:
+            if (ancestor, method_name) in builtin_methods:
+                return builtin_methods[(ancestor, method_name)]
+        
+        return OBJECT_CLASS
+    
+    def _get_ancestors(self, class_name: str) -> list[str]:
+        """Get list of ancestors including the class itself."""
+        result = [class_name]
+        current = class_name
+        
+        if self.program is None:
+            return result
+        
+        while current and current != OBJECT_CLASS:
+            for klass in self.program.classes:
+                if klass.name == current:
+                    if klass.parent:
+                        result.append(klass.parent)
+                        current = klass.parent
+                    else:
+                        current = None
+                    break
+            else:
+                # Check builtin parents
+                builtin_parents = {
+                    IO_CLASS: OBJECT_CLASS,
+                    INTEGER_CLASS: OBJECT_CLASS,
+                    STRING_CLASS: OBJECT_CLASS,
+                    BOOLEAN_CLASS: OBJECT_CLASS,
+                }
+                if current in builtin_parents:
+                    result.append(builtin_parents[current])
+                    current = builtin_parents[current]
+                else:
+                    break
+        
+        return result
 
     def generate(self, program: AST.Program) -> str:
         """
@@ -563,10 +692,26 @@ class MIPSCodeGenerator:
             self._emit(f"    .word {OBJECT_HEADER_SIZE + 2 * WORD_SIZE}")
             self._emit(f"    .word {CLASS_DISPTAB_PREFIX}{STRING_CLASS}")
             self._emit(f"    .word {const.length}")
-            # Escape the string for MIPS
-            escaped = value.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
-            self._emit(f'    .asciiz "{escaped}"')
+            # Escape the string for MIPS/SPIM
+            # SPIM doesn't interpret \\ as escaped backslash - it outputs literally
+            # So we only escape quotes, newlines, and tabs
+            # For backslashes, we use .byte directives for problematic cases
+            if '\\' in value and (value.endswith('\\') or '\\"' in value):
+                # Use .byte for strings with problematic backslash positions
+                self._emit_string_as_bytes(value)
+            else:
+                escaped = value.replace('"', '\\"').replace("\n", "\\n").replace("\t", "\\t")
+                self._emit(f'    .asciiz "{escaped}"')
             self._emit("    .align 2")
+    
+    def _emit_string_as_bytes(self, value: str) -> None:
+        """Emit a string using .byte directives for problematic escape sequences."""
+        bytes_list = [str(ord(c)) for c in value]
+        bytes_list.append("0")  # Null terminator
+        # Emit in chunks of 16 bytes per line
+        for i in range(0, len(bytes_list), 16):
+            chunk = bytes_list[i:i+16]
+            self._emit(f"    .byte {', '.join(chunk)}")
     
     def _emit_int_constants(self) -> None:
         """Emit integer constants."""
@@ -851,7 +996,26 @@ class MIPSCodeGenerator:
             self._emit_instr("lw", "$a0", "0($fp)")  # Restore self
         
         # Initialize attributes with init expressions
-        # (simplified - would need expression code gen here)
+        self._current_class = klass.name
+        self._self_offset = 0  # Self is at 0($fp) in initializer
+        self._locals = {}
+        self._local_types = {}
+        info = self.class_info.get(klass.name)
+        
+        for feature in klass.features:
+            if isinstance(feature, AST.ClassAttribute) and feature.init_expr is not None:
+                # Generate init expression
+                self._generate_expr(feature.init_expr)
+                
+                # Store result in attribute slot
+                # Find attribute offset
+                if info:
+                    for i, (attr_name, _) in enumerate(info.attributes):
+                        if attr_name == feature.name:
+                            offset = OBJECT_HEADER_SIZE + i * WORD_SIZE
+                            self._emit_instr("lw", "$t0", "0($fp)")  # Load self
+                            self._emit_instr("sw", "$a0", f"{offset}($t0)")  # Store in attr
+                            break
         
         # Epilogue
         self._emit_instr("lw", "$a0", "0($fp)")  # Return self
@@ -882,22 +1046,25 @@ class MIPSCodeGenerator:
         self._current_class = class_name
         self._current_method = method.name
         self._locals = {}
+        self._local_types = {}
         self._next_local_offset = 0
         
         self._emit_label(f"{METHOD_PREFIX}{class_name}_{method.name}")
         
         # Prologue - save $fp, $ra, and self
         frame_size = 12 + len(method.formal_params) * WORD_SIZE
+        self._self_offset = frame_size - 12  # self is stored at this offset from $fp
         self._emit_instr("addiu", "$sp", "$sp", f"-{frame_size}")
         self._emit_instr("sw", "$fp", f"{frame_size - 4}($sp)")
         self._emit_instr("sw", "$ra", f"{frame_size - 8}($sp)")
-        self._emit_instr("sw", "$a0", f"{frame_size - 12}($sp)")  # self
+        self._emit_instr("sw", "$a0", f"{self._self_offset}($sp)")  # self
         self._emit_instr("move", "$fp", "$sp")
         
-        # Store formals in frame
+        # Store formals in frame with their types
         for i, formal in enumerate(method.formal_params):
             offset = frame_size - 16 - i * WORD_SIZE
             self._locals[formal.name] = offset
+            self._local_types[formal.name] = formal.param_type
             # Arguments come in $a1, $a2, $a3 or on stack
             if i < 3:
                 self._emit_instr("sw", f"$a{i + 1}", f"{offset}($sp)")
@@ -930,8 +1097,8 @@ class MIPSCodeGenerator:
                 self._generate_bool_literal(value)
             
             case AST.Self():
-                # Load self from frame
-                self._emit_instr("lw", "$a0", "0($fp)")
+                # Load self from frame (offset depends on frame size)
+                self._emit_instr("lw", "$a0", f"{self._self_offset}($fp)")
             
             case AST.Object(name=name):
                 self._generate_object_ref(name)
@@ -1036,7 +1203,7 @@ class MIPSCodeGenerator:
     def _generate_object_ref(self, name: str) -> None:
         """Generate code to load a variable."""
         if name == "self":
-            self._emit_instr("lw", "$a0", "0($fp)")
+            self._emit_instr("lw", "$a0", f"{self._self_offset}($fp)")
         elif name in self._locals:
             offset = self._locals[name]
             self._emit_instr("lw", "$a0", f"{offset}($fp)")
@@ -1047,7 +1214,7 @@ class MIPSCodeGenerator:
                 for i, (attr_name, _) in enumerate(info.attributes):
                     if attr_name == name:
                         offset = OBJECT_HEADER_SIZE + i * WORD_SIZE
-                        self._emit_instr("lw", "$t0", "0($fp)")  # Load self
+                        self._emit_instr("lw", "$t0", f"{self._self_offset}($fp)")  # Load self
                         self._emit_instr("lw", "$a0", f"{offset}($t0)")
                         return
             self._emit_comment(f"Unknown variable: {name}")
@@ -1067,7 +1234,7 @@ class MIPSCodeGenerator:
                 for i, (attr_name, _) in enumerate(info.attributes):
                     if attr_name == name:
                         offset = OBJECT_HEADER_SIZE + i * WORD_SIZE
-                        self._emit_instr("lw", "$t0", "0($fp)")  # Load self
+                        self._emit_instr("lw", "$t0", f"{self._self_offset}($fp)")  # Load self
                         self._emit_instr("sw", "$a0", f"{offset}($t0)")
                         return
     
@@ -1170,7 +1337,7 @@ class MIPSCodeGenerator:
         if type_name == SELF_TYPE:
             # Get prototype from class tag
             self._emit_comment("new SELF_TYPE")
-            self._emit_instr("lw", "$t0", "0($fp)")  # Load self
+            self._emit_instr("lw", "$t0", f"{self._self_offset}($fp)")  # Load self
             # Would need class_objTab lookup - simplified
             self._emit_instr("la", "$a0", f"{CLASS_PROTOBJ_PREFIX}{self._current_class}")
         else:
@@ -1234,7 +1401,9 @@ class MIPSCodeGenerator:
         
         # Save old binding if exists
         old_offset = self._locals.get(var)
+        old_type = self._local_types.get(var)
         self._locals[var] = local_offset
+        self._local_types[var] = var_type
         
         # Initialize
         if init is not None:
@@ -1262,6 +1431,10 @@ class MIPSCodeGenerator:
             self._locals[var] = old_offset
         else:
             del self._locals[var]
+        if old_type is not None:
+            self._local_types[var] = old_type
+        elif var in self._local_types:
+            del self._local_types[var]
     
     def _generate_case(self, expr: AST.AST, actions: tuple) -> None:
         """Generate case expression."""
@@ -1363,7 +1536,11 @@ class MIPSCodeGenerator:
             self._emit_instr("lw", "$t0", "8($a0)")  # Dispatch pointer
         
         # Find method offset in dispatch table
-        lookup_type = static_type or self._current_class
+        # For dynamic dispatch, use the static type of the object expression
+        if static_type:
+            lookup_type = static_type
+        else:
+            lookup_type = self._get_expr_type(obj)
         info = self.class_info.get(lookup_type)
         method_offset = 0
         if info:
