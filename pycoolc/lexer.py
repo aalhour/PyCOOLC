@@ -8,11 +8,16 @@
 # Description:  The Lexer module. Implements lexical analysis of COOL programs.
 # -----------------------------------------------------------------------------
 
+from __future__ import annotations
+
+from collections.abc import Iterator
+from typing import Any
+
 import ply.lex as lex
-from ply.lex import TOKEN
+from ply.lex import TOKEN, LexToken
 
 
-class PyCoolLexer(object):
+class PyCoolLexer:
     """
     PyCoolLexer class.
 
@@ -35,40 +40,34 @@ class PyCoolLexer(object):
     The lexer is built using Python's lex (ply.lex) via specifying a tokens list, reserved keywords maps and tokenization
     regex rules.
     """
-    def __init__(self,
-                 build_lexer=True,
-                 debug=False,
-                 lextab="pycoolc.lextab",
-                 optimize=True,
-                 outputdir="",
-                 debuglog=None,
-                 errorlog=None):
+    def __init__(
+        self,
+        build_lexer: bool = True,
+        debug: bool = False,
+        lextab: str = "pycoolc.lextab",
+        optimize: bool = True,
+        outputdir: str = "",
+        debuglog: Any = None,
+        errorlog: Any = None,
+    ) -> None:
         """
-        Initializer.
-        :param debug: Debug mode flag.
-        :param optimize: Optimize mode flag.
-        :param outputdir: Output directory of lexing output; by default the .out file goes in the same directory.
-        :param debuglog: Debug log file path; by default lexer prints to stderr.
-        :param errorlog: Error log file path; by default lexer print to stderr.
-        :param build_lexer: If this is set to True the internal lexer will be built right after initialization,
-         which makes it convenient for direct use. If it's set to False, then an empty lexer instance will be
-         initialized and the lexer object will have to be built by calling lexer.build() after initialization.
+        Initialize the COOL lexer.
 
-        Example:
-         lexer = PyCoolLexer(build_lexer=False)
-         ...
-         lexer.build()
-         lexer.input(...)
-         ...
-
-        :return: None
+        Args:
+            build_lexer: If True, build the lexer immediately after initialization.
+            debug: Enable debug mode.
+            optimize: Enable optimization mode.
+            lextab: Module name for cached lexer tables.
+            outputdir: Output directory for lexer tables.
+            debuglog: Debug log file path (defaults to stderr).
+            errorlog: Error log file path (defaults to stderr).
         """
-        self.lexer = None               # ply lexer instance
-        self.tokens = ()                # ply tokens collection
-        self.reserved = {}              # ply reserved keywords map
-        self.last_token = None          # last returned token
+        self.lexer: Any = None
+        self.tokens: tuple[str, ...] = ()
+        self.reserved: dict[str, str] = {}
+        self.last_token: LexToken | None = None
 
-        # Save Flags - PRIVATE PROPERTIES
+        # Configuration - stored for rebuild
         self._debug = debug
         self._lextab = lextab
         self._optimize = optimize
@@ -76,19 +75,21 @@ class PyCoolLexer(object):
         self._debuglog = debuglog
         self._errorlog = errorlog
 
-        # Build lexer if build_lexer flag is set to True
-        if build_lexer is True:
-            self.build(debug=debug, lextab=lextab, optimize=optimize, outputdir=outputdir, debuglog=debuglog,
-                       errorlog=errorlog)
+        if build_lexer:
+            self.build(
+                debug=debug,
+                lextab=lextab,
+                optimize=optimize,
+                outputdir=outputdir,
+                debuglog=debuglog,
+                errorlog=errorlog,
+            )
 
     # #################################  READONLY  #####################################
 
     @property
-    def tokens_collection(self):
-        """
-        Collection of COOL Syntax Tokens.
-        :return: Tuple.
-        """
+    def tokens_collection(self) -> tuple[str, ...]:
+        """Collection of COOL syntax token names."""
         return (
             # Identifiers
             "ID", "TYPE",
@@ -100,17 +101,20 @@ class PyCoolLexer(object):
             "LPAREN", "RPAREN", "LBRACE", "RBRACE", "COLON", "COMMA", "DOT", "SEMICOLON", "AT",
 
             # Operators
-            "PLUS", "MINUS", "MULTIPLY", "DIVIDE", "EQ", "LT", "LTEQ", "ASSIGN", "INT_COMP", "NOT",
+            "PLUS", "MINUS", "MULTIPLY", "DIVIDE", "EQ", "LT", "LTEQ", "ASSIGN", "INT_COMP",
 
             # Special Operators
             "ARROW"
         )
 
     @property
-    def basic_reserved(self):
+    def basic_reserved(self) -> dict[str, str]:
         """
-        Map of Basic-COOL reserved keywords.
-        :return: dict.
+        Map of COOL reserved keywords (lowercase) to token types.
+        
+        Per COOL Manual §2: Keywords are case-insensitive, except for true/false
+        which must be lowercase. We store all keywords in lowercase and do
+        case-insensitive lookups in the token rules.
         """
         return {
             "case": "CASE",
@@ -125,19 +129,17 @@ class PyCoolLexer(object):
             "let": "LET",
             "loop": "LOOP",
             "new": "NEW",
+            "not": "NOT",  # Boolean negation operator
             "of": "OF",
             "pool": "POOL",
             "self": "SELF",
             "then": "THEN",
-            "while": "WHILE"
+            "while": "WHILE",
         }
 
     @property
-    def extended_reserved(self):
-        """
-        Map of Extended-COOL reserved keywords.
-        :return: dict.
-        """
+    def extended_reserved(self) -> dict[str, str]:
+        """Map of Extended-COOL reserved keywords (not currently used)."""
         return {
             "abstract": "ABSTRACT",
             "catch": "CATCH",
@@ -174,11 +176,8 @@ class PyCoolLexer(object):
         }
 
     @property
-    def builtin_types(self):
-        """
-        A map of the built-in types.
-        :return dict
-        """
+    def builtin_types(self) -> dict[str, str]:
+        """Map of built-in type names to token types (not currently used)."""
         return {
             "Bool": "BOOL_TYPE",
             "Int": "INT_TYPE",
@@ -216,7 +215,6 @@ class PyCoolLexer(object):
     t_EQ = r'\='            # =
     t_LTEQ = r'\<\='        # <=
     t_ASSIGN = r'\<\-'      # <-
-    t_NOT = r'not'          # not
     t_ARROW = r'\=\>'       # =>
 
     @TOKEN(r"(true|false)")
@@ -239,17 +237,23 @@ class PyCoolLexer(object):
     def t_TYPE(self, token):
         """
         The Type Token Rule.
+        
+        Type names start with uppercase. However, keywords are case-insensitive
+        in COOL (e.g., 'Class' = 'class'), so we check lowercase version.
         """
-        token.type = self.basic_reserved.get(token.value, 'TYPE')
+        # Case-insensitive keyword lookup
+        token.type = self.basic_reserved.get(token.value.lower(), 'TYPE')
         return token
 
     @TOKEN(r"[a-z_][a-zA-Z_0-9]*")
     def t_ID(self, token):
         """
         The Identifier Token Rule.
+        
+        Identifiers start with lowercase. Keywords are case-insensitive,
+        so we check lowercase version against reserved words.
         """
-        # Check for reserved words
-        token.type = self.basic_reserved.get(token.value, 'ID')
+        token.type = self.basic_reserved.get(token.value.lower(), 'ID')
         return token
 
     @TOKEN(r"\n+")
@@ -264,12 +268,12 @@ class PyCoolLexer(object):
 
     # ################# STATEFUL LEXICAL ANALYSIS ######################################
 
-    # LEXER STATES
     @property
-    def states(self):
+    def states(self) -> tuple[tuple[str, str], ...]:
+        """Lexer states for string and comment parsing."""
         return (
             ("STRING", "exclusive"),
-            ("COMMENT", "exclusive")
+            ("COMMENT", "exclusive"),
         )
 
     ###
@@ -366,20 +370,14 @@ class PyCoolLexer(object):
 
     # #################################  PUBLIC  #######################################
 
-    def build(self, **kwargs):
+    def build(self, **kwargs: Any) -> None:
         """
-        Builds the PyCoolLexer instance with lex.lex() by binding the tokens list, reserved keywords map and lexer
-        object in the current instance scope.
-        :param kwargs: config parameters map, complete list:
-            * debug: Debug mode flag.
-            * optimize: Optimize mode flag.
-            * debuglog: Debug log file path; by default lexer prints to stderr.
-            * errorlog: Error log file path; by default lexer print to stderr.
-            * outputdir: Output directory of lexing output; by default the .out file goes in the same directory.
-        :return: None
+        Build the PLY lexer instance.
+
+        This binds the tokens list and reserved keywords map, then calls ply.lex.lex().
+        Can be called with the same kwargs as __init__ to override settings.
         """
-        # Parse the parameters
-        if kwargs is None or len(kwargs) == 0:
+        if not kwargs:
             debug, lextab, optimize, outputdir, debuglog, errorlog = \
                 self._debug, self._lextab, self._optimize, self._outputdir, self._debuglog, self._errorlog
         else:
@@ -398,63 +396,64 @@ class PyCoolLexer(object):
         self.lexer = lex.lex(module=self, lextab=lextab, debug=debug, optimize=optimize, outputdir=outputdir,
                              debuglog=debuglog, errorlog=errorlog)
 
-    def input(self, cool_program_source_code: str):
+    def input(self, source_code: str) -> None:
         """
-        Run lexical analysis on a given COOL program source code string.
-        :param cool_program_source_code: COOL program source code as a string.
-        :return: None.
+        Feed source code to the lexer for tokenization.
+
+        Args:
+            source_code: COOL program source code as a string.
+
+        Raises:
+            RuntimeError: If the lexer hasn't been built yet.
         """
         if self.lexer is None:
-            raise Exception("Lexer was not built. Try calling the build() method first, and then tokenize().")
+            raise RuntimeError("Lexer was not built. Call build() first.")
+        self.lexer.input(source_code)
 
-        self.lexer.input(cool_program_source_code)
-
-    def token(self):
+    def token(self) -> LexToken | None:
         """
-        Advanced the lexers tokens tape one place and returns the current token.
-        :side-effects: Modifies self.last_token.
-        :return: Token.
+        Return the next token from the input stream.
+
+        Returns:
+            The next token, or None if no more tokens.
+
+        Raises:
+            RuntimeError: If the lexer hasn't been built yet.
         """
         if self.lexer is None:
-            raise Exception("Lexer was not built. Try building the lexer with the build() method.")
-
+            raise RuntimeError("Lexer was not built. Call build() first.")
         self.last_token = self.lexer.token()
         return self.last_token
 
-    def clone_ply_lexer(self):
-        """
-        Clones the internal PLY's lex-generated lexer instance. Returns a new copy.
-        :return: PLY's lex-generated lexer clone.
-        """
-        a_clone = self.lexer.clone()
-        return a_clone
+    def clone_ply_lexer(self) -> Any:
+        """Clone the internal PLY lexer instance."""
+        return self.lexer.clone()
 
     @staticmethod
-    def test(program_source_code: str):
+    def test(source_code: str) -> Iterator[LexToken]:
         """
-        Given a cool program source code string try to run lexical analysis on it and return all tokens as an iterator.
-        :param program_source_code: String.
-        :return: Iterator.
+        Convenience method to tokenize source code and return an iterator of tokens.
+
+        Args:
+            source_code: COOL program source code.
+
+        Returns:
+            Iterator of tokens.
         """
-        temp_lexer = PyCoolLexer()
-        temp_lexer.input(program_source_code)
-        iter_token_stream = iter([some_token for some_token in temp_lexer])
-        del temp_lexer
-        return iter_token_stream
+        lexer = PyCoolLexer()
+        lexer.input(source_code)
+        return iter(list(lexer))
 
     # ################### ITERATOR PROTOCOL ############################################
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[LexToken]:
         return self
 
-    def __next__(self):
+    def __next__(self) -> LexToken:
         t = self.token()
         if t is None:
             raise StopIteration
         return t
-
-    def next(self):
-        return self.__next__()
 
 
 # -----------------------------------------------------------------------------
