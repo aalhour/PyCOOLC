@@ -9,12 +9,17 @@
 #               of the COOL CFG.
 # -----------------------------------------------------------------------------
 
+from __future__ import annotations
+
+from typing import Any
+
 import ply.yacc as yacc
+
 import pycoolc.ast as AST
-from pycoolc.lexer import make_lexer
+from pycoolc.lexer import make_lexer, PyCoolLexer
 
 
-class PyCoolParser(object):
+class PyCoolParser:
     """
     PyCoolParser class.
 
@@ -27,42 +32,36 @@ class PyCoolParser(object):
      * build(): Builds the parser.
      * parse(): Parses a COOL program source code passed as a string.
     """
-    def __init__(self,
-                 build_parser=True,
-                 debug=False,
-                 write_tables=True,
-                 optimize=True,
-                 outputdir="",
-                 yacctab="pycoolc.yacctab",
-                 debuglog=None,
-                 errorlog=None):
+    def __init__(
+        self,
+        build_parser: bool = True,
+        debug: bool = False,
+        write_tables: bool = True,
+        optimize: bool = True,
+        outputdir: str = "",
+        yacctab: str = "pycoolc.yacctab",
+        debuglog: Any = None,
+        errorlog: Any = None,
+    ) -> None:
         """
-        Initializer.
-        :param debug: Debug mode flag.
-        :param optimize: Optimize mode flag.
-        :param outputdir: Output directory of parser output; by default the .out file goes in the same directory.
-        :param debuglog: Debug log file path; by default parser prints to stderr.
-        :param errorlog: Error log file path; by default parser print to stderr.
-        :param build_parser: If this is set to True the internal parser will be built right after initialization,
-         which makes it convenient for direct use. If it's set to False, then an empty parser instance will be
-         initialized and the parser object will have to be built by calling parser.build() after initialization.
+        Initialize the COOL parser.
 
-        Example:
-         parser = PyCoolParser(build_parser=False)
-         ...
-         parser.build()
-         parser.parse(...)
-         ...
-
-        :return: None
+        Args:
+            build_parser: If True, build the parser immediately after initialization.
+            debug: Enable debug mode.
+            write_tables: Write parsing tables to disk.
+            optimize: Enable optimization mode.
+            outputdir: Output directory for parser tables.
+            yacctab: Module name for cached parser tables.
+            debuglog: Debug log file path (defaults to stderr).
+            errorlog: Error log file path (defaults to stderr).
         """
-        # Initialize self.parser and self.tokens to None
-        self.tokens = None
-        self.lexer = None
-        self.parser = None
-        self.error_list = []
+        self.tokens: tuple[str, ...] | None = None
+        self.lexer: PyCoolLexer | None = None
+        self.parser: Any = None
+        self.error_list: list[str] = []
 
-        # Save Flags - PRIVATE PROPERTIES
+        # Configuration - stored for rebuild
         self._debug = debug
         self._write_tables = write_tables
         self._optimize = optimize
@@ -71,10 +70,16 @@ class PyCoolParser(object):
         self._debuglog = debuglog
         self._errorlog = errorlog
 
-        # Build parser if build_parser flag is set to True
-        if build_parser is True:
-            self.build(debug=debug, write_tables=write_tables, optimize=optimize, outputdir=outputdir,
-                       yacctab=yacctab, debuglog=debuglog, errorlog=errorlog)
+        if build_parser:
+            self.build(
+                debug=debug,
+                write_tables=write_tables,
+                optimize=optimize,
+                outputdir=outputdir,
+                yacctab=yacctab,
+                debuglog=debuglog,
+                errorlog=errorlog,
+            )
 
     # ################################# PRIVATE ########################################
 
@@ -432,17 +437,12 @@ class PyCoolParser(object):
 
     # #################################  PUBLIC  #######################################
 
-    def build(self, **kwargs):
+    def build(self, **kwargs: Any) -> None:
         """
-        Builds the PyCoolParser instance with yaac.yaac() by binding the lexer object and its tokens list in the
-        current instance scope.
-        :param kwargs: yaac.yaac() config parameters, complete list:
-            * debug: Debug mode flag.
-            * optimize: Optimize mode flag.
-            * debuglog: Debug log file path; by default parser prints to stderr.
-            * errorlog: Error log file path; by default parser print to stderr.
-            * outputdir: Output directory of parsing output; by default the .out file goes in the same directory.
-        :return: None
+        Build the PLY parser instance.
+
+        This creates the lexer, binds tokens, and calls ply.yacc.yacc().
+        Can be called with the same kwargs as __init__ to override settings.
         """
         # Parse the parameters
         if kwargs is None or len(kwargs) == 0:
@@ -469,16 +469,22 @@ class PyCoolParser(object):
         self.parser = yacc.yacc(module=self, write_tables=write_tables, debug=debug, optimize=optimize,
                                 outputdir=outputdir, tabmodule=yacctab, debuglog=debuglog, errorlog=errorlog)
 
-    def parse(self, program_source_code: str) -> AST.Program:
+    def parse(self, source_code: str) -> AST.Program | None:
         """
-        Parses a COOL program source code passed as a string.
-        :param program_source_code: string.
-        :return: Parser output.
+        Parse a COOL program and return its AST.
+
+        Args:
+            source_code: COOL program source code as a string.
+
+        Returns:
+            The Program AST node, or None if parsing failed.
+
+        Raises:
+            ValueError: If the parser hasn't been built yet.
         """
         if self.parser is None:
             raise ValueError("Parser was not build, try building it first with the build() method.")
-
-        return self.parser.parse(program_source_code)
+        return self.parser.parse(source_code)
 
 
 # -----------------------------------------------------------------------------
