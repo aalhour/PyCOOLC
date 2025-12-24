@@ -1,8 +1,0 @@
-# Runtime dependencies
-ply>=3.11
-
-# Development dependencies
-pytest>=8.0
-pytest-cov>=4.0
-mypy>=1.0
-deadcode>=2.4

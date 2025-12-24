@@ -1,0 +1,28 @@
+# Include essential files
+include LICENSE
+include README.md
+include pyproject.toml
+
+# Include documentation
+recursive-include docs *.md *.pdf
+
+# Include example programs
+recursive-include examples *.cl *.md
+
+# Exclude build artifacts
+global-exclude __pycache__
+global-exclude *.py[cod]
+global-exclude *.so
+global-exclude .DS_Store
+
+# Exclude development files
+exclude .pre-commit-config.yaml
+exclude Makefile
+exclude TODO.md
+exclude ISSUE.md
+exclude .cursorrules
+prune .github
+prune tests
+prune misc
+prune bin
+
