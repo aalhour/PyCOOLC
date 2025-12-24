@@ -17,7 +17,7 @@ from typing import Any
 import ply.yacc as yacc
 
 import pycoolc.ast as AST
-from pycoolc.lexer import make_lexer, PyCoolLexer
+from pycoolc.lexer import PyCoolLexer, make_lexer
 
 
 class PyCoolParser:
@@ -33,6 +33,7 @@ class PyCoolParser:
      * build(): Builds the parser.
      * parse(): Parses a COOL program source code passed as a string.
     """
+
     def __init__(
         self,
         build_parser: bool = True,
@@ -88,15 +89,15 @@ class PyCoolParser:
 
     # precedence rules
     precedence = (
-        ('right', 'ASSIGN'),
-        ('right', 'NOT'),
-        ('nonassoc', 'LTEQ', 'LT', 'EQ'),
-        ('left', 'PLUS', 'MINUS'),
-        ('left', 'MULTIPLY', 'DIVIDE'),
-        ('right', 'ISVOID'),
-        ('right', 'INT_COMP'),
-        ('left', 'AT'),
-        ('left', 'DOT')
+        ("right", "ASSIGN"),
+        ("right", "NOT"),
+        ("nonassoc", "LTEQ", "LT", "EQ"),
+        ("left", "PLUS", "MINUS"),
+        ("left", "MULTIPLY", "DIVIDE"),
+        ("right", "ISVOID"),
+        ("right", "INT_COMP"),
+        ("left", "AT"),
+        ("left", "DOT"),
     )
 
     # ################### START OF FORMAL GRAMMAR RULES DECLARATION ####################
@@ -134,7 +135,7 @@ class PyCoolParser:
         features_list_opt : features_list
                           | empty
         """
-        parse[0] = tuple() if parse.slice[1].type == "empty" else parse[1]
+        parse[0] = () if parse.slice[1].type == "empty" else parse[1]
 
     def p_feature_list(self, parse):
         """
@@ -150,13 +151,17 @@ class PyCoolParser:
         """
         feature : ID LPAREN formal_params_list RPAREN COLON TYPE LBRACE expression RBRACE
         """
-        parse[0] = AST.ClassMethod(name=parse[1], formal_params=parse[3], return_type=parse[6], body=parse[8])
+        parse[0] = AST.ClassMethod(
+            name=parse[1], formal_params=parse[3], return_type=parse[6], body=parse[8]
+        )
 
     def p_feature_method_no_formals(self, parse):
         """
         feature : ID LPAREN RPAREN COLON TYPE LBRACE expression RBRACE
         """
-        parse[0] = AST.ClassMethod(name=parse[1], formal_params=tuple(), return_type=parse[5], body=parse[7])
+        parse[0] = AST.ClassMethod(
+            name=parse[1], formal_params=(), return_type=parse[5], body=parse[7]
+        )
 
     def p_feature_attr_initialized(self, parse):
         """
@@ -251,7 +256,7 @@ class PyCoolParser:
         arguments_list_opt : arguments_list
                            | empty
         """
-        parse[0] = tuple() if parse.slice[1].type == "empty" else parse[1]
+        parse[0] = () if parse.slice[1].type == "empty" else parse[1]
 
     def p_arguments_list(self, parse):
         """
@@ -267,7 +272,9 @@ class PyCoolParser:
         """
         expression : expression AT TYPE DOT ID LPAREN arguments_list_opt RPAREN
         """
-        parse[0] = AST.StaticDispatch(instance=parse[1], dispatch_type=parse[3], method=parse[5], arguments=parse[7])
+        parse[0] = AST.StaticDispatch(
+            instance=parse[1], dispatch_type=parse[3], method=parse[5], arguments=parse[7]
+        )
 
     def p_expression_self_dispatch(self, parse):
         """
@@ -284,13 +291,13 @@ class PyCoolParser:
                    | expression MULTIPLY expression
                    | expression DIVIDE expression
         """
-        if parse[2] == '+':
+        if parse[2] == "+":
             parse[0] = AST.Addition(first=parse[1], second=parse[3])
-        elif parse[2] == '-':
+        elif parse[2] == "-":
             parse[0] = AST.Subtraction(first=parse[1], second=parse[3])
-        elif parse[2] == '*':
+        elif parse[2] == "*":
             parse[0] = AST.Multiplication(first=parse[1], second=parse[3])
-        elif parse[2] == '/':
+        elif parse[2] == "/":
             parse[0] = AST.Division(first=parse[1], second=parse[3])
 
     def p_expression_math_comparisons(self, parse):
@@ -299,11 +306,11 @@ class PyCoolParser:
                    | expression LTEQ expression
                    | expression EQ expression
         """
-        if parse[2] == '<':
+        if parse[2] == "<":
             parse[0] = AST.LessThan(first=parse[1], second=parse[3])
-        elif parse[2] == '<=':
+        elif parse[2] == "<=":
             parse[0] = AST.LessThanOrEqual(first=parse[1], second=parse[3])
-        elif parse[2] == '=':
+        elif parse[2] == "=":
             parse[0] = AST.Equal(first=parse[1], second=parse[3])
 
     def p_expression_with_parenthesis(self, parse):
@@ -340,11 +347,11 @@ class PyCoolParser:
         # bindings is a list of (name, type, init_expr) tuples
         bindings = parse[2]
         body = parse[4]
-        
+
         # Build from innermost to outermost
         for name, type_name, init_expr in reversed(bindings):
             body = AST.Let(instance=name, return_type=type_name, init_expr=init_expr, body=body)
-        
+
         parse[0] = body
 
     def p_let_bindings_single(self, parse):
@@ -438,8 +445,7 @@ class PyCoolParser:
         if parse is None:
             print("Error! Unexpected end of input!")
         else:
-            error = "Syntax error! Line: {}, position: {}, character: {}, type: {}".format(
-                parse.lineno, parse.lexpos, parse.value, parse.type)
+            error = f"Syntax error! Line: {parse.lineno}, position: {parse.lexpos}, character: {parse.value}, type: {parse.type}"
             self.error_list.append(error)
             self.parser.errok()
 
@@ -456,9 +462,15 @@ class PyCoolParser:
         """
         # Parse the parameters
         if kwargs is None or len(kwargs) == 0:
-            debug, write_tables, optimize, outputdir, yacctab, debuglog, errorlog = \
-                self._debug, self._write_tables, self._optimize, self._outputdir, self._yacctab, self._debuglog, \
-                self._errorlog
+            debug, write_tables, optimize, outputdir, yacctab, debuglog, errorlog = (
+                self._debug,
+                self._write_tables,
+                self._optimize,
+                self._outputdir,
+                self._yacctab,
+                self._debuglog,
+                self._errorlog,
+            )
         else:
             debug = kwargs.get("debug", self._debug)
             write_tables = kwargs.get("write_tables", self._write_tables)
@@ -469,15 +481,28 @@ class PyCoolParser:
             errorlog = kwargs.get("errorlog", self._errorlog)
 
         # Build PyCoolLexer
-        self.lexer = make_lexer(debug=debug, optimize=optimize, outputdir=outputdir, debuglog=debuglog,
-                                errorlog=errorlog)
+        self.lexer = make_lexer(
+            debug=debug,
+            optimize=optimize,
+            outputdir=outputdir,
+            debuglog=debuglog,
+            errorlog=errorlog,
+        )
 
         # Expose tokens collections to this instance scope
         self.tokens = self.lexer.tokens
 
         # Build yacc parser
-        self.parser = yacc.yacc(module=self, write_tables=write_tables, debug=debug, optimize=optimize,
-                                outputdir=outputdir, tabmodule=yacctab, debuglog=debuglog, errorlog=errorlog)
+        self.parser = yacc.yacc(
+            module=self,
+            write_tables=write_tables,
+            debug=debug,
+            optimize=optimize,
+            outputdir=outputdir,
+            tabmodule=yacctab,
+            debuglog=debuglog,
+            errorlog=errorlog,
+        )
 
     def parse(self, source_code: str) -> AST.Program | None:
         """
@@ -515,7 +540,7 @@ def make_parser(**kwargs) -> PyCoolParser:
     return a_parser
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import sys
 
     parser = make_parser()
@@ -536,7 +561,7 @@ if __name__ == '__main__':
         print("PyCOOLC Parser: Interactive Mode.\r\n")
         while True:
             try:
-                s = input('COOL >>> ')
+                s = input("COOL >>> ")
             except EOFError:
                 break
             if not s:
@@ -544,4 +569,3 @@ if __name__ == '__main__':
             result = parser.parse(s)
             if result is not None:
                 print(result)
-

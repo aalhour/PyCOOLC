@@ -40,6 +40,7 @@ class PyCoolLexer:
     The lexer is built using Python's lex (ply.lex) via specifying a tokens list, reserved keywords maps and tokenization
     regex rules.
     """
+
     def __init__(
         self,
         build_lexer: bool = True,
@@ -92,26 +93,41 @@ class PyCoolLexer:
         """Collection of COOL syntax token names."""
         return (
             # Identifiers
-            "ID", "TYPE",
-
+            "ID",
+            "TYPE",
             # Primitive Types
-            "INTEGER", "STRING", "BOOLEAN",
-
+            "INTEGER",
+            "STRING",
+            "BOOLEAN",
             # Literals
-            "LPAREN", "RPAREN", "LBRACE", "RBRACE", "COLON", "COMMA", "DOT", "SEMICOLON", "AT",
-
+            "LPAREN",
+            "RPAREN",
+            "LBRACE",
+            "RBRACE",
+            "COLON",
+            "COMMA",
+            "DOT",
+            "SEMICOLON",
+            "AT",
             # Operators
-            "PLUS", "MINUS", "MULTIPLY", "DIVIDE", "EQ", "LT", "LTEQ", "ASSIGN", "INT_COMP",
-
+            "PLUS",
+            "MINUS",
+            "MULTIPLY",
+            "DIVIDE",
+            "EQ",
+            "LT",
+            "LTEQ",
+            "ASSIGN",
+            "INT_COMP",
             # Special Operators
-            "ARROW"
+            "ARROW",
         )
 
     @property
     def basic_reserved(self) -> dict[str, str]:
         """
         Map of COOL reserved keywords (lowercase) to token types.
-        
+
         Per COOL Manual §2: Keywords are case-insensitive, except for true/false
         which must be lowercase. We store all keywords in lowercase and do
         case-insensitive lookups in the token rules.
@@ -172,7 +188,7 @@ class PyCoolLexer:
             "val": "VAL",
             "var": "VAR",
             "with": "WITH",
-            "yield": "YIELD"
+            "yield": "YIELD",
         }
 
     @property
@@ -185,7 +201,7 @@ class PyCoolLexer:
             "Main": "MAIN_TYPE",
             "Object": "OBJECT_TYPE",
             "String": "STRING_TYPE",
-            "SELF_TYPE": "SELF_TYPE"
+            "SELF_TYPE": "SELF_TYPE",
         }
 
     # ################################  PRIVATE  #######################################
@@ -197,32 +213,32 @@ class PyCoolLexer:
 
     ###
     # SIMPLE TOKENS
-    t_LPAREN = r'\('        # (
-    t_RPAREN = r'\)'        # )
-    t_LBRACE = r'\{'        # {
-    t_RBRACE = r'\}'        # }
-    t_COLON = r'\:'         # :
-    t_COMMA = r'\,'         # ,
-    t_DOT = r'\.'           # .
-    t_SEMICOLON = r'\;'     # ;
-    t_AT = r'\@'            # @
-    t_MULTIPLY = r'\*'      # *
-    t_DIVIDE = r'\/'        # /
-    t_PLUS = r'\+'          # +
-    t_MINUS = r'\-'         # -
-    t_INT_COMP = r'~'       # ~
-    t_LT = r'\<'            # <
-    t_EQ = r'\='            # =
-    t_LTEQ = r'\<\='        # <=
-    t_ASSIGN = r'\<\-'      # <-
-    t_ARROW = r'\=\>'       # =>
+    t_LPAREN = r"\("  # (
+    t_RPAREN = r"\)"  # )
+    t_LBRACE = r"\{"  # {
+    t_RBRACE = r"\}"  # }
+    t_COLON = r"\:"  # :
+    t_COMMA = r"\,"  # ,
+    t_DOT = r"\."  # .
+    t_SEMICOLON = r"\;"  # ;
+    t_AT = r"\@"  # @
+    t_MULTIPLY = r"\*"  # *
+    t_DIVIDE = r"\/"  # /
+    t_PLUS = r"\+"  # +
+    t_MINUS = r"\-"  # -
+    t_INT_COMP = r"~"  # ~
+    t_LT = r"\<"  # <
+    t_EQ = r"\="  # =
+    t_LTEQ = r"\<\="  # <=
+    t_ASSIGN = r"\<\-"  # <-
+    t_ARROW = r"\=\>"  # =>
 
     @TOKEN(r"(true|false)")
     def t_BOOLEAN(self, token):
         """
         The Bool Primitive Type Token Rule.
         """
-        token.value = True if token.value == "true" else False
+        token.value = token.value == "true"
         return token
 
     @TOKEN(r"\d+")
@@ -237,23 +253,23 @@ class PyCoolLexer:
     def t_TYPE(self, token):
         """
         The Type Token Rule.
-        
+
         Type names start with uppercase. However, keywords are case-insensitive
         in COOL (e.g., 'Class' = 'class'), so we check lowercase version.
         """
         # Case-insensitive keyword lookup
-        token.type = self.basic_reserved.get(token.value.lower(), 'TYPE')
+        token.type = self.basic_reserved.get(token.value.lower(), "TYPE")
         return token
 
     @TOKEN(r"[a-z_][a-zA-Z_0-9]*")
     def t_ID(self, token):
         """
         The Identifier Token Rule.
-        
+
         Identifiers start with lowercase. Keywords are case-insensitive,
         so we check lowercase version against reserved words.
         """
-        token.type = self.basic_reserved.get(token.value.lower(), 'ID')
+        token.type = self.basic_reserved.get(token.value.lower(), "ID")
         return token
 
     @TOKEN(r"\n+")
@@ -264,7 +280,7 @@ class PyCoolLexer:
         token.lexer.lineno += len(token.value)
 
     # Ignore Whitespace Character Rule
-    t_ignore = ' \t\r\f'
+    t_ignore = " \t\r\f"
 
     # ################# STATEFUL LEXICAL ANALYSIS ######################################
 
@@ -307,31 +323,31 @@ class PyCoolLexer:
     @TOKEN(r"[^\n]")
     def t_STRING_anything(self, token):
         if token.lexer.string_backslashed:
-            if token.value == 'b':
-                token.lexer.stringbuf += '\b'
-            elif token.value == 't':
-                token.lexer.stringbuf += '\t'
-            elif token.value == 'n':
-                token.lexer.stringbuf += '\n'
-            elif token.value == 'f':
-                token.lexer.stringbuf += '\f'
-            elif token.value == '\\':
-                token.lexer.stringbuf += '\\'
+            if token.value == "b":
+                token.lexer.stringbuf += "\b"
+            elif token.value == "t":
+                token.lexer.stringbuf += "\t"
+            elif token.value == "n":
+                token.lexer.stringbuf += "\n"
+            elif token.value == "f":
+                token.lexer.stringbuf += "\f"
+            elif token.value == "\\":
+                token.lexer.stringbuf += "\\"
             else:
                 token.lexer.stringbuf += token.value
             token.lexer.string_backslashed = False
         else:
-            if token.value != '\\':
+            if token.value != "\\":
                 token.lexer.stringbuf += token.value
             else:
                 token.lexer.string_backslashed = True
 
     # STRING ignored characters
-    t_STRING_ignore = ''
+    t_STRING_ignore = ""
 
     # STRING error handler
     def t_STRING_error(self, token):
-        print("Illegal character! Line: {0}, character: {1}".format(token.lineno, token.value[0]))
+        print(f"Illegal character! Line: {token.lineno}, character: {token.value[0]}")
         token.lexer.skip(1)
 
     ###
@@ -353,7 +369,7 @@ class PyCoolLexer:
             token.lexer.comment_count -= 1
 
     # COMMENT ignored characters
-    t_COMMENT_ignore = ''
+    t_COMMENT_ignore = ""
 
     # COMMENT error handler
     def t_COMMENT_error(self, token):
@@ -363,7 +379,7 @@ class PyCoolLexer:
         """
         Error Handling and Reporting Rule.
         """
-        print("Illegal character! Line: {0}, character: {1}".format(token.lineno, token.value[0]))
+        print(f"Illegal character! Line: {token.lineno}, character: {token.value[0]}")
         token.lexer.skip(1)
 
     # ################# END OF LEXICAL ANALYSIS RULES DECLARATION ######################
@@ -378,8 +394,14 @@ class PyCoolLexer:
         Can be called with the same kwargs as __init__ to override settings.
         """
         if not kwargs:
-            debug, lextab, optimize, outputdir, debuglog, errorlog = \
-                self._debug, self._lextab, self._optimize, self._outputdir, self._debuglog, self._errorlog
+            debug, lextab, optimize, outputdir, debuglog, errorlog = (
+                self._debug,
+                self._lextab,
+                self._optimize,
+                self._outputdir,
+                self._debuglog,
+                self._errorlog,
+            )
         else:
             debug = kwargs.get("debug", self._debug)
             lextab = kwargs.get("lextab", self._lextab)
@@ -393,8 +415,15 @@ class PyCoolLexer:
         self.tokens = self.tokens_collection + tuple(self.basic_reserved.values())
 
         # Build internal ply.lex instance
-        self.lexer = lex.lex(module=self, lextab=lextab, debug=debug, optimize=optimize, outputdir=outputdir,
-                             debuglog=debuglog, errorlog=errorlog)
+        self.lexer = lex.lex(
+            module=self,
+            lextab=lextab,
+            debug=debug,
+            optimize=optimize,
+            outputdir=outputdir,
+            debuglog=debuglog,
+            errorlog=errorlog,
+        )
 
     def input(self, source_code: str) -> None:
         """
@@ -463,6 +492,7 @@ class PyCoolLexer:
 #
 # -----------------------------------------------------------------------------
 
+
 def make_lexer(**kwargs) -> PyCoolLexer:
     """
     Utility function.
@@ -492,4 +522,3 @@ if __name__ == "__main__":
     lexer.input(cool_program_code)
     for token in lexer:
         print(token)
-

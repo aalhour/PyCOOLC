@@ -24,5 +24,4 @@
 # 4. **Lattice Theory**: Data flow values form a lattice with meet/join
 #    operations. Fixed-point iteration converges because lattices are finite.
 
-__all__ = ["dataflow", "constant_prop", "liveness", "dce"]
-
+__all__ = ["constant_prop", "dataflow", "dce", "liveness"]

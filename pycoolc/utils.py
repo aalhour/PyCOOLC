@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from pycoolc.ast import AST, Self
+from pycoolc.ast import AST
 
 
 def print_readable_ast(tree, level=0, inline=False):
@@ -12,6 +12,7 @@ def print_readable_ast(tree, level=0, inline=False):
     :param inline: Whether or not to indent the first line.
     :return: None. The AST is printed directly to stdout.
     """
+
     #####
     # INTERNAL HELPERS
     #
@@ -25,7 +26,7 @@ def print_readable_ast(tree, level=0, inline=False):
         :return: string.
         """
         indentation = "    "
-        out = '\n'.join((level * indentation) + i for i in source_string.splitlines())
+        out = "\n".join((level * indentation) + i for i in source_string.splitlines())
         if lstrip_first:
             return out.lstrip()
         return out
@@ -34,28 +35,28 @@ def print_readable_ast(tree, level=0, inline=False):
         """
         Checks whether a given object is an instance of an AST class.
         """
-        return isinstance(node, AST) and hasattr(node, 'to_tuple')
-    
+        return isinstance(node, AST) and hasattr(node, "to_tuple")
+
     #####
     # BEGIN
     #
     if is_node(tree):
         attrs = tree.to_tuple()
-        
+
         # First attribute is always the class name
         if len(attrs) <= 1:
-            print(indent('{0}()'.format(tree.clsname), level, inline))
+            print(indent(f"{tree.clsname}()", level, inline))
         else:
-            print(indent('{0}('.format(tree.clsname), level, inline))
+            print(indent(f"{tree.clsname}(", level, inline))
             for key, value in attrs:
                 if key == "class_name":
                     continue
-                print(indent(key + '=', level + 1), end='')
+                print(indent(key + "=", level + 1), end="")
                 print_readable_ast(value, level + 1, True)
-            print(indent(')', level))
+            print(indent(")", level))
 
     elif isinstance(tree, (tuple, list)):
-        braces = '()' if isinstance(tree, tuple) else '[]'
+        braces = "()" if isinstance(tree, tuple) else "[]"
         if len(tree) == 0:
             print(braces)
         else:
@@ -66,4 +67,3 @@ def print_readable_ast(tree, level=0, inline=False):
 
     else:
         print(indent(repr(tree), level, inline))
-

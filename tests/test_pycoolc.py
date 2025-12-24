@@ -2,21 +2,17 @@
 Tests for the compiler driver (pycoolc.py).
 """
 
-import pytest
 import sys
-import tempfile
-from pathlib import Path
-from io import StringIO
 from unittest.mock import patch
 
 from pycoolc.pycoolc import (
-    create_arg_parser,
-    lexical_analysis,
-    syntax_analysis,
-    semantic_analysis,
     code_generation,
     compile_program,
+    create_arg_parser,
+    lexical_analysis,
     main,
+    semantic_analysis,
+    syntax_analysis,
 )
 
 
@@ -120,6 +116,7 @@ class TestSemanticAnalysis:
 
     def test_returns_analyzed_ast_and_analyzer(self):
         from pycoolc.parser import make_parser
+
         parser = make_parser()
         ast = parser.parse("class Main { main(): Object { self }; };")
         result, analyzer = semantic_analysis(ast, print_results=False)
@@ -128,6 +125,7 @@ class TestSemanticAnalysis:
 
     def test_analyzer_has_class_info(self):
         from pycoolc.parser import make_parser
+
         parser = make_parser()
         ast = parser.parse("class Main { main(): Object { self }; };")
         _, analyzer = semantic_analysis(ast, print_results=False)
@@ -141,12 +139,12 @@ class TestCodeGeneration:
     def test_generates_mips_code(self):
         from pycoolc.parser import make_parser
         from pycoolc.semanalyser import make_semantic_analyser
-        
+
         parser = make_parser()
         ast = parser.parse("class Main { main(): Object { self }; };")
         analyzer = make_semantic_analyser()
         analyzed = analyzer.transform(ast)
-        
+
         code = code_generation(analyzed, analyzer, output_file=None)
         assert ".data" in code
         assert ".text" in code
@@ -154,15 +152,15 @@ class TestCodeGeneration:
     def test_writes_to_output_file(self, tmp_path):
         from pycoolc.parser import make_parser
         from pycoolc.semanalyser import make_semantic_analyser
-        
+
         parser = make_parser()
         ast = parser.parse("class Main { main(): Object { self }; };")
         analyzer = make_semantic_analyser()
         analyzed = analyzer.transform(ast)
-        
+
         output_file = tmp_path / "test.s"
         code_generation(analyzed, analyzer, output_file=str(output_file))
-        
+
         assert output_file.exists()
         content = output_file.read_text()
         assert ".data" in content
@@ -243,20 +241,20 @@ class TestMain:
         source_file = tmp_path / "test.cl"
         source_file.write_text("class Main { main(): Object { self }; };")
         output_file = tmp_path / "test.s"
-        
+
         with patch.object(sys, "argv", ["pycoolc", str(source_file), "-o", str(output_file)]):
             result = main()
-        
+
         assert result == 0
         assert output_file.exists()
 
     def test_no_codegen_flag_skips_output(self, tmp_path):
         source_file = tmp_path / "test.cl"
         source_file.write_text("class Main { main(): Object { self }; };")
-        
+
         with patch.object(sys, "argv", ["pycoolc", str(source_file), "--no-codegen"]):
             result = main()
-        
+
         assert result == 0
 
     def test_multiple_files_concatenated(self, tmp_path):
@@ -265,10 +263,10 @@ class TestMain:
         file2 = tmp_path / "b.cl"
         file2.write_text("class Main { main(): Object { self }; };")
         output_file = tmp_path / "out.s"
-        
+
         with patch.object(sys, "argv", ["pycoolc", str(file1), str(file2), "-o", str(output_file)]):
             result = main()
-        
+
         assert result == 0
         content = output_file.read_text()
         # Check that class A was compiled (appears in class name table or init)
@@ -277,9 +275,8 @@ class TestMain:
     def test_compilation_error_returns_one(self, tmp_path):
         source_file = tmp_path / "bad.cl"
         source_file.write_text("class Main { x: UndefinedType; };")
-        
+
         with patch.object(sys, "argv", ["pycoolc", str(source_file)]):
             result = main()
-        
-        assert result == 1
 
+        assert result == 1

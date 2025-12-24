@@ -8,8 +8,8 @@
 # -----------------------------------------------------------------------------
 
 from __future__ import annotations
-from typing import Any
 
+from typing import Any
 
 # ############################## BASE AST NODES CLASSES ##############################
 
@@ -75,6 +75,7 @@ class Class(AST):
 
 class ClassFeature(AST):
     """Base class for class features (attributes and methods)."""
+
     pass
 
 
@@ -181,6 +182,7 @@ class Self(Object):
 
 class Constant(AST):
     """Base class for literal constants."""
+
     pass
 
 
@@ -237,6 +239,7 @@ class Boolean(Constant):
 
 class Expr(AST):
     """Base class for expression nodes."""
+
     pass
 
 
@@ -455,7 +458,9 @@ class Action(AST):
         )
 
     def to_readable(self) -> str:
-        return f"{self.clsname}(name='{self.name}', action_type={self.action_type}, body={self.body})"
+        return (
+            f"{self.clsname}(name='{self.name}', action_type={self.action_type}, body={self.body})"
+        )
 
 
 # ############################## UNARY OPERATIONS ##################################
@@ -463,6 +468,7 @@ class Action(AST):
 
 class UnaryOperation(Expr):
     """Base class for unary operations."""
+
     pass
 
 
@@ -505,6 +511,7 @@ class BooleanComplement(UnaryOperation):
 
 class BinaryOperation(Expr):
     """Base class for binary operations."""
+
     pass
 
 

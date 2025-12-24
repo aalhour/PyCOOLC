@@ -9,21 +9,17 @@ These tests verify the currently implemented semantic analysis features:
 """
 
 import pytest
+
+import pycoolc.ast as AST
 from pycoolc.parser import make_parser
 from pycoolc.semanalyser import (
-    make_semantic_analyser,
-    PyCoolSemanticAnalyser,
+    OBJECT_CLASS,
+    SELF_TYPE,
+    MethodSignature,
     SemanticAnalysisError,
     TypeEnvironment,
-    MethodSignature,
-    OBJECT_CLASS,
-    INTEGER_CLASS,
-    BOOLEAN_CLASS,
-    STRING_CLASS,
-    IO_CLASS,
-    SELF_TYPE,
+    make_semantic_analyser,
 )
-import pycoolc.ast as AST
 
 
 @pytest.fixture
@@ -317,15 +313,15 @@ class TestTypeEnvironment:
     def test_nested_scope_inherits_parent(self):
         env = TypeEnvironment(current_class="Main")
         env.define_object("x", "Int")
-        
+
         inner = env.enter_scope()
         # Can see parent's variables
         assert inner.lookup_object("x") == "Int"
-        
+
         # Can define new variables
         inner.define_object("y", "Bool")
         assert inner.lookup_object("y") == "Bool"
-        
+
         # Parent doesn't see inner's variables
         assert env.lookup_object("y") is None
 
@@ -417,7 +413,7 @@ class TestMethodTable:
     def test_object_methods_inherited(self, parser, analyzer):
         ast = parser.parse(MAIN_CLASS)
         analyzer.transform(ast)
-        
+
         # Main should have Object's methods
         abort_sig = analyzer.lookup_method("Main", "abort")
         assert abort_sig is not None
@@ -426,7 +422,7 @@ class TestMethodTable:
     def test_io_methods_inherited(self, parser, analyzer):
         ast = parser.parse("class Main inherits IO { main() : Object { self }; };")
         analyzer.transform(ast)
-        
+
         # Main should have IO's methods
         out_string_sig = analyzer.lookup_method("Main", "out_string")
         assert out_string_sig is not None
@@ -440,7 +436,7 @@ class TestMethodTable:
             };
         """)
         analyzer.transform(ast)
-        
+
         foo_sig = analyzer.lookup_method("Main", "foo")
         assert foo_sig is not None
         assert foo_sig.param_types == ("Int", "Bool")
@@ -459,7 +455,7 @@ class TestAttributeTable:
             };
         """)
         analyzer.transform(ast)
-        
+
         assert analyzer.lookup_attribute("Main", "x") == "Int"
         assert analyzer.lookup_attribute("Main", "y") == "Bool"
 
@@ -474,11 +470,11 @@ class TestAttributeTable:
             };
         """)
         analyzer.transform(ast)
-        
+
         # Main (Child) has both its own and parent's attributes
         assert analyzer.lookup_attribute("Main", "x") == "Int"
         assert analyzer.lookup_attribute("Main", "y") == "Bool"
-        
+
         # Parent only has its own
         assert analyzer.lookup_attribute("Parent", "x") == "Int"
         assert analyzer.lookup_attribute("Parent", "y") is None
@@ -913,7 +909,9 @@ class TestAdditionalTypeChecking:
                 main() : Int { ~true };
             };
         """)
-        with pytest.raises(SemanticAnalysisError, match="Integer complement.*requires Int.*got 'Bool'"):
+        with pytest.raises(
+            SemanticAnalysisError, match="Integer complement.*requires Int.*got 'Bool'"
+        ):
             analyzer.transform(ast)
 
     def test_boolean_complement_wrong_type(self, parser, analyzer):
@@ -923,7 +921,9 @@ class TestAdditionalTypeChecking:
                 main() : Bool { not 42 };
             };
         """)
-        with pytest.raises(SemanticAnalysisError, match="Boolean complement.*requires Bool.*got 'Int'"):
+        with pytest.raises(
+            SemanticAnalysisError, match="Boolean complement.*requires Bool.*got 'Int'"
+        ):
             analyzer.transform(ast)
 
     def test_new_undefined_class(self, parser, analyzer):
@@ -933,7 +933,9 @@ class TestAdditionalTypeChecking:
                 main() : Object { new UndefinedClass };
             };
         """)
-        with pytest.raises(SemanticAnalysisError, match="Cannot instantiate undefined class 'UndefinedClass'"):
+        with pytest.raises(
+            SemanticAnalysisError, match="Cannot instantiate undefined class 'UndefinedClass'"
+        ):
             analyzer.transform(ast)
 
     def test_isvoid_expression(self, parser, analyzer):
@@ -968,7 +970,9 @@ class TestAdditionalTypeChecking:
                 };
             };
         """)
-        with pytest.raises(SemanticAnalysisError, match="Static dispatch type 'Foo' is not a supertype"):
+        with pytest.raises(
+            SemanticAnalysisError, match="Static dispatch type 'Foo' is not a supertype"
+        ):
             analyzer.transform(ast)
 
     def test_arithmetic_left_operand_wrong_type(self, parser, analyzer):
@@ -978,7 +982,9 @@ class TestAdditionalTypeChecking:
                 main() : Int { "hello" + 5 };
             };
         """)
-        with pytest.raises(SemanticAnalysisError, match="Left operand of '\\+' must be Int.*got 'String'"):
+        with pytest.raises(
+            SemanticAnalysisError, match="Left operand of '\\+' must be Int.*got 'String'"
+        ):
             analyzer.transform(ast)
 
     def test_arithmetic_right_operand_wrong_type(self, parser, analyzer):
@@ -988,7 +994,9 @@ class TestAdditionalTypeChecking:
                 main() : Int { 5 + "hello" };
             };
         """)
-        with pytest.raises(SemanticAnalysisError, match="Right operand of '\\+' must be Int.*got 'String'"):
+        with pytest.raises(
+            SemanticAnalysisError, match="Right operand of '\\+' must be Int.*got 'String'"
+        ):
             analyzer.transform(ast)
 
     def test_comparison_left_operand_wrong_type(self, parser, analyzer):
@@ -998,7 +1006,9 @@ class TestAdditionalTypeChecking:
                 main() : Bool { "hello" < 5 };
             };
         """)
-        with pytest.raises(SemanticAnalysisError, match="Left operand of '<' must be Int.*got 'String'"):
+        with pytest.raises(
+            SemanticAnalysisError, match="Left operand of '<' must be Int.*got 'String'"
+        ):
             analyzer.transform(ast)
 
     def test_comparison_right_operand_wrong_type(self, parser, analyzer):
@@ -1008,6 +1018,7 @@ class TestAdditionalTypeChecking:
                 main() : Bool { 5 < "hello" };
             };
         """)
-        with pytest.raises(SemanticAnalysisError, match="Right operand of '<' must be Int.*got 'String'"):
+        with pytest.raises(
+            SemanticAnalysisError, match="Right operand of '<' must be Int.*got 'String'"
+        ):
             analyzer.transform(ast)
-

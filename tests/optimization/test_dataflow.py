@@ -5,12 +5,10 @@ These tests verify the core data flow abstractions work correctly
 before testing specific analyses.
 """
 
-import pytest
 from pycoolc.optimization.dataflow import (
     ConstValue,
-    ConstLattice,
-    SetValue,
     Direction,
+    SetValue,
 )
 
 
@@ -50,13 +48,13 @@ class TestConstValue:
         assert s.get_constant() == "hello"
 
     # Meet operation tests (from user's notes)
-    
+
     def test_meet_bottom_with_anything(self):
         """lub(⊥, x) = x (Bottom is identity for meet)."""
         bottom = ConstValue.bottom()
         top = ConstValue.top()
         c = ConstValue.constant(42)
-        
+
         assert bottom.meet(top) == top
         assert bottom.meet(c) == c
         assert bottom.meet(bottom) == bottom
@@ -66,7 +64,7 @@ class TestConstValue:
         bottom = ConstValue.bottom()
         top = ConstValue.top()
         c = ConstValue.constant(42)
-        
+
         assert top.meet(bottom) == top
         assert c.meet(bottom) == c
 
@@ -74,7 +72,7 @@ class TestConstValue:
         """lub(⊤, x) = ⊤ and lub(x, ⊤) = ⊤."""
         top = ConstValue.top()
         c = ConstValue.constant(42)
-        
+
         assert top.meet(c) == top
         assert c.meet(top) == top
         assert top.meet(top) == top
@@ -83,7 +81,7 @@ class TestConstValue:
         """lub(c, c) = c."""
         c1 = ConstValue.constant(42)
         c2 = ConstValue.constant(42)
-        
+
         result = c1.meet(c2)
         assert result.is_constant()
         assert result.get_constant() == 42
@@ -92,7 +90,7 @@ class TestConstValue:
         """lub(c1, c2) = ⊤ when c1 ≠ c2."""
         c1 = ConstValue.constant(1)
         c2 = ConstValue.constant(2)
-        
+
         result = c1.meet(c2)
         assert result.is_top()
 
@@ -122,7 +120,7 @@ class TestSetValue:
     def test_add(self):
         s = SetValue.empty()
         s2 = s.add("x")
-        
+
         # Original unchanged (immutable)
         assert "x" not in s
         assert "x" in s2
@@ -130,7 +128,7 @@ class TestSetValue:
     def test_remove(self):
         s = SetValue.from_set({"x", "y"})
         s2 = s.remove("x")
-        
+
         assert "x" in s
         assert "x" not in s2
         assert "y" in s2
@@ -138,7 +136,7 @@ class TestSetValue:
     def test_union(self):
         s1 = SetValue.from_set({"a", "b"})
         s2 = SetValue.from_set({"b", "c"})
-        
+
         result = s1.union(s2)
         assert "a" in result
         assert "b" in result
@@ -147,7 +145,7 @@ class TestSetValue:
     def test_intersection(self):
         s1 = SetValue.from_set({"a", "b"})
         s2 = SetValue.from_set({"b", "c"})
-        
+
         result = s1.intersection(s2)
         assert "a" not in result
         assert "b" in result
@@ -167,4 +165,3 @@ class TestDirection:
 
     def test_backward(self):
         assert Direction.BACKWARD != Direction.FORWARD
-

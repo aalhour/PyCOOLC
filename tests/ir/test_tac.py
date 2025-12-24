@@ -5,20 +5,37 @@ These tests verify that TAC instructions correctly track their
 definitions and uses, which is essential for data flow analysis.
 """
 
-import pytest
 from pycoolc.ir.tac import (
-    # Operands
-    Temp, Var, Const, Label,
-    # Operators
-    BinOp, UnaryOp,
     # Instructions
-    BinaryOp, UnaryOperation, Copy,
-    LabelInstr, Jump, CondJump, CondJumpNot,
-    Param, Call, Return,
-    New, Dispatch, StaticDispatch, IsVoid, GetAttr, SetAttr,
+    BinaryOp,
+    # Operators
+    BinOp,
+    Call,
+    CondJump,
+    CondJumpNot,
+    Const,
+    Copy,
+    Dispatch,
+    GetAttr,
+    IsVoid,
+    Jump,
+    Label,
+    LabelInstr,
+    New,
+    Param,
     Phi,
+    Return,
+    SetAttr,
+    StaticDispatch,
     # Program structures
-    TACMethod, TACProgram, TempGenerator,
+    TACMethod,
+    TACProgram,
+    # Operands
+    Temp,
+    TempGenerator,
+    UnaryOp,
+    UnaryOperation,
+    Var,
 )
 
 
@@ -28,14 +45,14 @@ class TestOperands:
     def test_temp_str(self):
         t = Temp(0)
         assert str(t) == "t0"
-        
+
         t5 = Temp(5)
         assert str(t5) == "t5"
 
     def test_var_str(self):
         v = Var("x")
         assert str(v) == "x"
-        
+
         self_var = Var("self")
         assert str(self_var) == "self"
 
@@ -52,7 +69,7 @@ class TestOperands:
     def test_const_string_str(self):
         c = Const("hello", "String")
         assert str(c) == '"hello"'
-        
+
         # With escapes
         c2 = Const("line1\nline2", "String")
         assert "\\n" in str(c2)
@@ -67,7 +84,7 @@ class TestOperands:
         v = Var("x")
         c = Const(42, "Int")
         lbl = Label("L0")
-        
+
         s = {t, v, c, lbl}
         assert len(s) == 4
 
@@ -375,17 +392,18 @@ class TestTempGenerator:
         t0 = gen.new_temp()
         t1 = gen.new_temp()
         t2 = gen.new_temp()
-        
+
         assert t0.index == 0
         assert t1.index == 1
         assert t2.index == 2
 
     def test_new_label(self):
         from pycoolc.ir.tac import LabelGenerator
+
         gen = LabelGenerator()
         l0 = gen.new_label("if")
         l1 = gen.new_label("if")
-        
+
         assert l0.name == "if_0"
         assert l1.name == "if_1"
 
@@ -394,51 +412,48 @@ class TestTempGenerator:
         gen.new_temp()
         gen.new_temp()
         gen.reset()
-        
+
         t = gen.new_temp()
         assert t.index == 0
-    
+
     def test_label_generator_reset(self):
         from pycoolc.ir.tac import LabelGenerator
+
         gen = LabelGenerator()
         gen.new_label()
         gen.new_label()
         gen.reset()
-        
+
         lbl = gen.new_label("test")
         assert lbl.name == "test_0"
-    
+
     def test_label_generator_default_prefix(self):
         from pycoolc.ir.tac import LabelGenerator
+
         gen = LabelGenerator()
         lbl = gen.next()
-        
+
         assert lbl.name == "L_0"
 
 
 class TestTACProgram:
     """Tests for TACProgram."""
-    
+
     def test_str_empty(self):
-        from pycoolc.ir.tac import TACProgram
         prog = TACProgram()
         s = str(prog)
-        
+
         assert "TAC Program" in s
-    
+
     def test_str_with_constants(self):
-        from pycoolc.ir.tac import TACProgram
-        prog = TACProgram(
-            string_constants={"hello": "str_0", "world\n": "str_1"}
-        )
+        prog = TACProgram(string_constants={"hello": "str_0", "world\n": "str_1"})
         s = str(prog)
-        
+
         assert "String Constants:" in s
         assert "str_0" in s
         assert "hello" in s
-    
+
     def test_str_with_methods(self):
-        from pycoolc.ir.tac import TACProgram
         prog = TACProgram(
             methods=[
                 TACMethod(
@@ -450,11 +465,10 @@ class TestTACProgram:
             ]
         )
         s = str(prog)
-        
+
         assert "Main.main" in s
-    
+
     def test_get_method_found(self):
-        from pycoolc.ir.tac import TACProgram
         method = TACMethod(
             class_name="Main",
             method_name="main",
@@ -462,66 +476,68 @@ class TestTACProgram:
             instructions=[],
         )
         prog = TACProgram(methods=[method])
-        
+
         found = prog.get_method("Main", "main")
         assert found is method
-    
+
     def test_get_method_not_found(self):
-        from pycoolc.ir.tac import TACProgram
         prog = TACProgram()
-        
+
         found = prog.get_method("Main", "main")
         assert found is None
 
 
 class TestComment:
     """Tests for Comment instruction."""
-    
+
     def test_str(self):
         from pycoolc.ir.tac import Comment
+
         c = Comment("This is a comment")
         assert str(c) == "# This is a comment"
-    
+
     def test_defs_empty(self):
         from pycoolc.ir.tac import Comment
+
         c = Comment("Test")
         assert c.defs() == set()
-    
+
     def test_uses_empty(self):
         from pycoolc.ir.tac import Comment
+
         c = Comment("Test")
         assert c.uses() == set()
 
 
 class TestInstructionMethods:
     """Tests for Instruction base class methods."""
-    
+
     def test_is_jump_default_false(self):
         # Regular instruction should return False
         instr = Copy(dest=Temp(0), source=Const(1, "Int"))
         assert not instr.is_jump()
-    
+
     def test_is_label_default_false(self):
         # Regular instruction should return False
         instr = Copy(dest=Temp(0), source=Const(1, "Int"))
         assert not instr.is_label()
-    
+
     def test_jump_targets_default_empty(self):
         # Regular instruction has no jump targets
         instr = Copy(dest=Temp(0), source=Const(1, "Int"))
         assert instr.jump_targets() == []
-    
+
     def test_jump_is_jump_true(self):
         # Jump instruction should return True for is_jump
         instr = Jump(target=Label("L0"))
         assert instr.is_jump()
-    
+
     def test_jump_targets_returns_target(self):
         # Jump instruction returns its target
         instr = Jump(target=Label("L0"))
         targets = instr.jump_targets()
         assert Label("L0") in targets
-    
+
     def test_label_instr_is_label_true(self):
         # LabelInstr should return True for is_label
         instr = LabelInstr(Label("L0"))
@@ -530,7 +546,7 @@ class TestInstructionMethods:
 
 class TestAdditionalInstructions:
     """Additional tests for instruction coverage."""
-    
+
     def test_dispatch_with_none_dest(self):
         instr = Dispatch(
             dest=None,
@@ -541,7 +557,7 @@ class TestAdditionalInstructions:
         s = str(instr)
         assert "self.foo" in s
         assert instr.defs() == set()
-    
+
     def test_static_dispatch_with_none_dest(self):
         instr = StaticDispatch(
             dest=None,
@@ -553,7 +569,7 @@ class TestAdditionalInstructions:
         s = str(instr)
         assert "self@IO.out_string" in s
         assert instr.defs() == set()
-    
+
     def test_call_with_none_dest(self):
         instr = Call(
             dest=None,
@@ -563,7 +579,7 @@ class TestAdditionalInstructions:
         s = str(instr)
         assert "call func" in s
         assert instr.defs() == set()
-    
+
     def test_dispatch_uses(self):
         instr = Dispatch(
             dest=Temp(0),
@@ -573,7 +589,7 @@ class TestAdditionalInstructions:
         )
         uses = instr.uses()
         assert Var("obj") in uses
-    
+
     def test_static_dispatch_uses(self):
         instr = StaticDispatch(
             dest=Temp(0),
@@ -584,7 +600,7 @@ class TestAdditionalInstructions:
         )
         uses = instr.uses()
         assert Var("obj") in uses
-    
+
     def test_get_attr_uses(self):
         instr = GetAttr(
             dest=Temp(0),
@@ -593,7 +609,7 @@ class TestAdditionalInstructions:
         )
         uses = instr.uses()
         assert Var("self") in uses
-    
+
     def test_set_attr_uses(self):
         instr = SetAttr(
             obj=Var("self"),
@@ -603,7 +619,7 @@ class TestAdditionalInstructions:
         uses = instr.uses()
         assert Var("self") in uses
         assert Temp(0) in uses
-    
+
     def test_cond_jump_not_is_jump(self):
         instr = CondJumpNot(
             condition=Var("cond"),
@@ -611,4 +627,3 @@ class TestAdditionalInstructions:
         )
         assert instr.is_jump()
         assert Label("L0") in instr.jump_targets()
-

@@ -6,9 +6,10 @@ for various COOL programs.
 """
 
 import pytest
+
+from pycoolc.codegen import make_code_generator
 from pycoolc.parser import make_parser
 from pycoolc.semanalyser import make_semantic_analyser
-from pycoolc.codegen import make_code_generator, MIPSCodeGenerator
 
 
 @pytest.fixture
@@ -27,10 +28,10 @@ def compile_to_mips(source: str) -> str:
     """Helper to compile COOL source to MIPS assembly."""
     parser = make_parser()
     analyzer = make_semantic_analyser()
-    
+
     ast = parser.parse(source)
     analyzed_ast = analyzer.transform(ast)
-    
+
     codegen = make_code_generator(analyzer)
     return codegen.generate(analyzed_ast)
 
@@ -302,17 +303,16 @@ class TestAttributeGeneration:
         # Should load self and then load attribute
         assert "_method_Main_main:" in code
         # Contains load from attribute offset
-        lines = code.split('\n')
+        lines = code.split("\n")
         main_method = False
         has_load_self = False
-        has_load_attr = False
         for line in lines:
             if "_method_Main_main:" in line:
                 main_method = True
             if main_method and "lw" in line and "$fp" in line:
                 has_load_self = True
             if main_method and "lw" in line and "$t0" in line:
-                has_load_attr = True
+                pass
         assert has_load_self
 
     def test_object_attribute_initialization(self):
@@ -828,7 +828,7 @@ class TestStringOperations:
 class TestStackManagement:
     """
     Tests for correct stack management in expression evaluation.
-    
+
     These are regression tests for bugs where we stored values at 0($sp)
     BEFORE decrementing the stack pointer, which overwrote existing data
     when expressions were nested.
@@ -837,7 +837,7 @@ class TestStackManagement:
     def test_arithmetic_preserves_stack_in_dispatch_args(self):
         """
         Regression test: s.substr(s.length() - 1, 1) was corrupting stack.
-        
+
         When evaluating arguments to dispatch:
         1. Push arg 1 (literal 1)
         2. Evaluate arg 0 (s.length() - 1)
@@ -857,9 +857,9 @@ class TestStackManagement:
         assert "_method_String_length" in code
         # Key: arithmetic should decrement BEFORE storing
         # Check that we have proper stack management pattern
-        lines = code.split('\n')
+        lines = code.split("\n")
         in_method = False
-        for i, line in enumerate(lines):
+        for _i, line in enumerate(lines):
             if "_method_Main_main:" in line:
                 in_method = True
             if in_method and "sub" in line.lower():
@@ -869,7 +869,7 @@ class TestStackManagement:
     def test_nested_arithmetic_stack_balance(self):
         """
         Test that deeply nested arithmetic maintains stack balance.
-        
+
         Expression: ((a + b) - (c + d)) * ((e - f) + (g - h))
         Each sub-expression uses the stack; incorrect ordering corrupts values.
         """
@@ -890,7 +890,7 @@ class TestStackManagement:
     def test_comparison_in_nested_if(self):
         """
         Test comparisons nested in if expressions.
-        
+
         Bug: comparison was storing at 0($sp) before decrementing,
         which could corrupt the predicate evaluation.
         """
@@ -911,7 +911,7 @@ class TestStackManagement:
     def test_equality_with_complex_operands(self):
         """
         Test equality where both operands are complex expressions.
-        
+
         Bug: _generate_equality was storing left operand at 0($sp) before
         decrementing, so evaluating the right operand could overwrite it.
         """
@@ -936,7 +936,7 @@ class TestStackManagement:
     def test_dispatch_args_with_arithmetic(self):
         """
         Test method call with arithmetic expressions as arguments.
-        
+
         f(a + b, c - d, e * f) requires careful stack management.
         """
         code = compile_to_mips("""
@@ -956,7 +956,7 @@ class TestStackManagement:
 class TestStringComparison:
     """
     Tests for string equality comparison.
-    
+
     Regression tests for bug where string equality only compared lengths,
     not actual content.
     """
@@ -964,7 +964,7 @@ class TestStringComparison:
     def test_string_equality_checks_content(self):
         """
         String equality must compare content, not just length.
-        
+
         BUG: "ab" = "cd" returned true because both have length 2.
         """
         code = compile_to_mips("""
@@ -1015,7 +1015,7 @@ class TestStringComparison:
 class TestInStringImplementation:
     """
     Tests for IO.in_string() implementation.
-    
+
     Regression tests for bug where in_string() returned empty string
     instead of actually reading input.
     """
@@ -1030,9 +1030,8 @@ class TestInStringImplementation:
         # Should have in_string implementation
         assert "_method_IO_in_string" in code
         # Should use syscall 8 (read string)
-        lines = code.split('\n')
-        has_syscall_8 = any("li" in line and "$v0" in line and "8" in line 
-                           for line in lines)
+        lines = code.split("\n")
+        has_syscall_8 = any("li" in line and "$v0" in line and "8" in line for line in lines)
         assert has_syscall_8, "in_string should use syscall 8"
 
     def test_in_string_with_length_check(self):
@@ -1259,7 +1258,7 @@ class TestEdgeCases:
 class TestTypeName:
     """
     Tests for Object.type_name() implementation.
-    
+
     Regression tests for bug where type_name() returned empty string
     instead of actual class name.
     """
@@ -1329,7 +1328,7 @@ class TestTypeName:
         # Verify table exists and has proper structure
         assert "_class_name_table:" in code
         # Object (tag 0) should be first in table
-        lines = code.split('\n')
+        lines = code.split("\n")
         table_started = False
         for line in lines:
             if "_class_name_table:" in line:
@@ -1343,7 +1342,7 @@ class TestTypeName:
 class TestStackOrderingRegression:
     """
     Specific regression tests for the stack ordering fix.
-    
+
     The bug was: storing at 0($sp) BEFORE decrementing, which overwrites
     data already on the stack. The fix: decrement FIRST, then store at 0($sp).
     """
@@ -1359,11 +1358,10 @@ class TestStackOrderingRegression:
                 main() : Int { 1 + 2 };
             };
         """)
-        lines = code.split('\n')
+        lines = code.split("\n")
         # Find the pattern in arithmetic section
         # Look for addiu before sw in the method
         in_main = False
-        found_pattern = False
         last_was_addiu_dec = False
         for line in lines:
             if "_method_Main_main:" in line:
@@ -1373,7 +1371,6 @@ class TestStackOrderingRegression:
                 if "addiu" in stripped and "$sp" in stripped and "-4" in stripped:
                     last_was_addiu_dec = True
                 elif "sw" in stripped and "0($sp)" in stripped and last_was_addiu_dec:
-                    found_pattern = True
                     break
                 elif stripped and not stripped.startswith("#"):
                     last_was_addiu_dec = False
@@ -1405,7 +1402,7 @@ class TestStackOrderingRegression:
 
 class TestTypeInference:
     """Tests for expression type inference in codegen."""
-    
+
     def test_attribute_type_inference(self):
         """Attribute access should infer correct type."""
         code = compile_to_mips("""
@@ -1415,7 +1412,7 @@ class TestTypeInference:
             };
         """)
         assert "_method_Main_main" in code
-    
+
     def test_static_dispatch_type_inference(self):
         """Static dispatch should use dispatch type."""
         code = compile_to_mips("""
@@ -1427,7 +1424,7 @@ class TestTypeInference:
         """)
         # Verify static dispatch is generated
         assert "_method_IO_out_string" in code or "IO_out_string" in code
-    
+
     def test_new_object_type_inference(self):
         """New expression should infer object type."""
         code = compile_to_mips("""
@@ -1437,7 +1434,7 @@ class TestTypeInference:
             };
         """)
         assert "Foo" in code
-    
+
     def test_integer_literal_type(self):
         """Integer literals have Int type."""
         code = compile_to_mips("""
@@ -1446,7 +1443,7 @@ class TestTypeInference:
             };
         """)
         assert "42" in code or "li" in code
-    
+
     def test_boolean_literal_type(self):
         """Boolean literals have Bool type."""
         code = compile_to_mips("""
@@ -1459,7 +1456,7 @@ class TestTypeInference:
 
 class TestBuiltinMethodReturnTypes:
     """Tests for builtin method return type handling."""
-    
+
     def test_io_out_string_returns_self(self):
         """IO.out_string returns SELF_TYPE."""
         code = compile_to_mips("""
@@ -1471,7 +1468,7 @@ class TestBuiltinMethodReturnTypes:
         """)
         # Chained calls should work
         assert "_method_IO_out_string" in code
-    
+
     def test_string_length_returns_int(self):
         """String.length returns Int."""
         code = compile_to_mips("""
@@ -1482,7 +1479,7 @@ class TestBuiltinMethodReturnTypes:
             };
         """)
         assert "_method_String_length" in code
-    
+
     def test_string_concat_returns_string(self):
         """String.concat returns String."""
         code = compile_to_mips("""
@@ -1493,7 +1490,7 @@ class TestBuiltinMethodReturnTypes:
             };
         """)
         assert "_method_String_concat" in code
-    
+
     def test_object_type_name_returns_string(self):
         """Object.type_name returns String."""
         code = compile_to_mips("""
@@ -1508,7 +1505,7 @@ class TestBuiltinMethodReturnTypes:
 
 class TestAncestorChain:
     """Tests for inheritance chain handling."""
-    
+
     def test_inherited_method_dispatch(self):
         """Methods inherited from builtin classes work."""
         code = compile_to_mips("""
@@ -1522,7 +1519,7 @@ class TestAncestorChain:
         """)
         # Should have method table for MyIO
         assert "MyIO" in code
-    
+
     def test_deep_inheritance_chain(self):
         """Deep inheritance chains are handled."""
         code = compile_to_mips("""
@@ -1537,9 +1534,9 @@ class TestAncestorChain:
         assert "C" in code
 
 
-class TestEdgeCases:
+class TestCodegenEdgeCases:
     """Edge cases in code generation."""
-    
+
     def test_empty_method(self):
         """Method returning just self."""
         code = compile_to_mips("""
@@ -1548,7 +1545,7 @@ class TestEdgeCases:
             };
         """)
         assert "_method_Main_main" in code
-    
+
     def test_multiple_string_constants(self):
         """Multiple string constants are deduplicated."""
         code = compile_to_mips("""
@@ -1564,7 +1561,7 @@ class TestEdgeCases:
         """)
         # "test" should appear in data section
         assert "test" in code
-    
+
     def test_nested_dispatch(self):
         """Nested method dispatch."""
         code = compile_to_mips("""
@@ -1575,7 +1572,7 @@ class TestEdgeCases:
             };
         """)
         assert "_method_IO_out_string" in code
-    
+
     def test_dynamic_dispatch_on_attribute(self):
         """Dispatch on attribute should work."""
         code = compile_to_mips("""
@@ -1588,7 +1585,7 @@ class TestEdgeCases:
             };
         """)
         assert "_method_Foo_bar" in code
-    
+
     def test_self_type_method_chain(self):
         """SELF_TYPE return allows method chaining."""
         code = compile_to_mips("""
@@ -1604,7 +1601,7 @@ class TestEdgeCases:
 
 class TestStaticDispatchEdgeCases:
     """Edge cases for static dispatch."""
-    
+
     def test_static_dispatch_to_parent(self):
         """Static dispatch to parent class."""
         code = compile_to_mips("""

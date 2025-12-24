@@ -14,10 +14,10 @@ import argparse
 import sys
 from pathlib import Path
 
+from pycoolc.codegen import make_code_generator
 from pycoolc.lexer import make_lexer
 from pycoolc.parser import make_parser
 from pycoolc.semanalyser import make_semantic_analyser
-from pycoolc.codegen import make_code_generator
 from pycoolc.utils import print_readable_ast
 
 
@@ -38,7 +38,8 @@ def create_arg_parser() -> argparse.ArgumentParser:
 
     # Output file argument
     arg_parser.add_argument(
-        "-o", "--outfile",
+        "-o",
+        "--outfile",
         type=str,
         default=None,
         help="Output file name for the compiled MIPS assembly",
@@ -105,12 +106,12 @@ def code_generation(ast, analyzer, output_file: str | None = None) -> str:
     """Generate MIPS assembly from the analyzed AST."""
     codegen = make_code_generator(analyzer)
     code = codegen.generate(ast)
-    
+
     if output_file:
         with open(output_file, "w", encoding="utf-8") as f:
             f.write(code)
         print(f"Generated {output_file}")
-    
+
     return code
 
 
@@ -124,7 +125,7 @@ def compile_program(
 ) -> str | None:
     """
     Compile a COOL program to MIPS assembly.
-    
+
     Args:
         source: COOL source code.
         output_file: Path to write the output assembly.
@@ -132,7 +133,7 @@ def compile_program(
         print_ast: Print parser output.
         print_semantics: Print semantic analysis output.
         skip_codegen: Skip code generation phase.
-    
+
     Returns:
         The generated MIPS assembly, or None if skipping codegen.
     """
@@ -142,36 +143,36 @@ def compile_program(
         print("# " + "=" * 40)
         lexical_analysis(source)
         print()
-    
+
     if print_ast:
         print("# " + "=" * 40)
         print("# Syntax Analysis (AST)")
         print("# " + "=" * 40)
         syntax_analysis(source)
         print()
-    
+
     # Parse
     parser = make_parser()
     ast = parser.parse(source)
-    
+
     if ast is None:
         print("Error: Parsing failed", file=sys.stderr)
         return None
-    
+
     # Semantic analysis
     if print_semantics:
         print("# " + "=" * 40)
         print("# Semantic Analysis")
         print("# " + "=" * 40)
-    
+
     analyzed_ast, analyzer = semantic_analysis(ast, print_results=print_semantics)
-    
+
     if print_semantics:
         print()
-    
+
     if skip_codegen:
         return None
-    
+
     # Code generation
     return code_generation(analyzed_ast, analyzer, output_file)
 
@@ -180,14 +181,14 @@ def main() -> int:
     """Compiler entry point."""
     arg_parser = create_arg_parser()
     args = arg_parser.parse_args()
-    
+
     # Validate input files
     source_files = args.cool_program
     for program in source_files:
         if not program.endswith(".cl"):
             print(f"Error: COOL files must have .cl extension: {program}", file=sys.stderr)
             return 1
-    
+
     # Read all source files
     source_code = ""
     for program in source_files:
@@ -199,13 +200,13 @@ def main() -> int:
         except Exception as e:
             print(f"Error reading {program}: {e}", file=sys.stderr)
             return 1
-    
+
     # Determine output file name
     output_file = args.outfile
     if output_file is None and not args.no_codegen:
         # Default: first input file with .s extension
         output_file = source_files[0].replace(".cl", ".s")
-    
+
     try:
         compile_program(
             source=source_code,

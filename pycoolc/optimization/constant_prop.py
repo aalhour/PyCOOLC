@@ -81,33 +81,32 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from pycoolc.ir.cfg import ControlFlowGraph, BasicBlock
+from pycoolc.ir.cfg import ControlFlowGraph
 from pycoolc.ir.tac import (
-    Instruction,
-    Operand,
-    Temp,
-    Var,
-    Const,
     BinaryOp,
-    UnaryOperation,
-    Copy,
     BinOp,
-    UnaryOp,
     Call,
+    Const,
+    Copy,
     Dispatch,
-    StaticDispatch,
-    New,
-    IsVoid,
     GetAttr,
+    Instruction,
+    IsVoid,
+    New,
+    Operand,
     Phi,
+    StaticDispatch,
+    Temp,
+    UnaryOp,
+    UnaryOperation,
+    Var,
 )
 from pycoolc.optimization.dataflow import (
+    ConstValue,
     DataFlowAnalysis,
     DataFlowResult,
     Direction,
-    ConstValue,
 )
-
 
 # =============================================================================
 #                           CONSTANT ENVIRONMENT
@@ -118,22 +117,23 @@ from pycoolc.optimization.dataflow import (
 class ConstEnv:
     """
     Environment mapping variables to their constant values.
-    
+
     This is the data flow value for constant propagation.
     Each variable maps to a ConstValue (⊤, ⊥, or a constant).
     """
+
     values: dict[str, ConstValue] = field(default_factory=dict)
-    
+
     def get(self, var: str) -> ConstValue:
         """Get the value for a variable (default: ⊥)."""
         return self.values.get(var, ConstValue.bottom())
-    
+
     def set(self, var: str, value: ConstValue) -> ConstEnv:
         """Return a new environment with the variable set."""
         new_values = dict(self.values)
         new_values[var] = value
         return ConstEnv(new_values)
-    
+
     def meet(self, other: ConstEnv) -> ConstEnv:
         """Meet two environments (merge at join points)."""
         all_vars = set(self.values.keys()) | set(other.values.keys())
@@ -143,26 +143,23 @@ class ConstEnv:
             v2 = other.get(var)
             new_values[var] = v1.meet(v2)
         return ConstEnv(new_values)
-    
+
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, ConstEnv):
             return False
         # Compare all variables in either environment
         all_vars = set(self.values.keys()) | set(other.values.keys())
-        for var in all_vars:
-            if self.get(var) != other.get(var):
-                return False
-        return True
-    
+        return all(self.get(var) == other.get(var) for var in all_vars)
+
     def __hash__(self) -> int:
         return hash(frozenset(self.values.items()))
-    
+
     def __str__(self) -> str:
         if not self.values:
             return "{}"
         items = [f"{k}: {v}" for k, v in sorted(self.values.items())]
         return "{\n  " + ",\n  ".join(items) + "\n}"
-    
+
     def copy(self) -> ConstEnv:
         """Create a copy of this environment."""
         return ConstEnv(dict(self.values))
@@ -176,31 +173,31 @@ class ConstEnv:
 class ConstantPropagation(DataFlowAnalysis[ConstEnv]):
     """
     Global constant propagation analysis.
-    
+
     Computes which variables have constant values at each program point.
     """
-    
+
     def __init__(self, params: list[str] | None = None) -> None:
         """
         Initialize the analysis.
-        
+
         Args:
             params: Method parameters (these start as ⊤, not ⊥)
         """
         self.params = params or []
-    
+
     @property
     def direction(self) -> Direction:
         return Direction.FORWARD
-    
+
     def initial_value(self) -> ConstEnv:
         """Initial value: empty environment (all variables are ⊥)."""
         return ConstEnv()
-    
+
     def boundary_value(self) -> ConstEnv:
         """
         Boundary value at entry: parameters and 'self' are ⊤.
-        
+
         We don't know what values are passed to the method.
         """
         env = ConstEnv()
@@ -210,7 +207,7 @@ class ConstantPropagation(DataFlowAnalysis[ConstEnv]):
         for param in self.params:
             env = env.set(param, ConstValue.top())
         return env
-    
+
     def meet(self, values: list[ConstEnv]) -> ConstEnv:
         """Meet of multiple environments."""
         if not values:
@@ -219,7 +216,7 @@ class ConstantPropagation(DataFlowAnalysis[ConstEnv]):
         for env in values[1:]:
             result = result.meet(env)
         return result
-    
+
     def transfer(self, env: ConstEnv, instruction: Instruction) -> ConstEnv:
         """
         Transfer function: how does an instruction affect the environment?
@@ -228,39 +225,39 @@ class ConstantPropagation(DataFlowAnalysis[ConstEnv]):
             case Copy(dest=dest, source=source):
                 value = self._eval_operand(source, env)
                 return env.set(self._operand_name(dest), value)
-            
+
             case BinaryOp(dest=dest, op=op, left=left, right=right):
                 left_val = self._eval_operand(left, env)
                 right_val = self._eval_operand(right, env)
                 result = self._eval_binop(op, left_val, right_val)
                 return env.set(self._operand_name(dest), result)
-            
+
             case UnaryOperation(dest=dest, op=op, operand=operand):
                 val = self._eval_operand(operand, env)
                 result = self._eval_unaryop(op, val)
                 return env.set(self._operand_name(dest), result)
-            
+
             case Call(dest=dest) if dest is not None:
                 # Function calls return unknown values
                 return env.set(self._operand_name(dest), ConstValue.top())
-            
+
             case Dispatch(dest=dest) | StaticDispatch(dest=dest) if dest is not None:
                 # Method calls return unknown values
                 return env.set(self._operand_name(dest), ConstValue.top())
-            
+
             case New(dest=dest):
                 # New objects are not constants
                 return env.set(self._operand_name(dest), ConstValue.top())
-            
+
             case IsVoid(dest=dest, operand=operand):
                 # isvoid result depends on whether operand is known void
                 # For simplicity, treat as unknown
                 return env.set(self._operand_name(dest), ConstValue.top())
-            
+
             case GetAttr(dest=dest):
                 # Attribute loads are unknown
                 return env.set(self._operand_name(dest), ConstValue.top())
-            
+
             case Phi(dest=dest, sources=sources):
                 # Meet all source values
                 values = [self._eval_operand(val, env) for val, _ in sources]
@@ -271,11 +268,11 @@ class ConstantPropagation(DataFlowAnalysis[ConstEnv]):
                     for v in values[1:]:
                         result = result.meet(v)
                 return env.set(self._operand_name(dest), result)
-            
+
             case _:
                 # Instructions that don't define variables
                 return env
-    
+
     def _operand_name(self, op: Operand) -> str:
         """Get the name of an operand for the environment."""
         match op:
@@ -285,7 +282,7 @@ class ConstantPropagation(DataFlowAnalysis[ConstEnv]):
                 return name
             case _:
                 return str(op)
-    
+
     def _eval_operand(self, op: Operand, env: ConstEnv) -> ConstValue:
         """Evaluate an operand to a constant value."""
         match op:
@@ -295,7 +292,7 @@ class ConstantPropagation(DataFlowAnalysis[ConstEnv]):
                 return env.get(self._operand_name(op))
             case _:
                 return ConstValue.top()
-    
+
     def _eval_binop(
         self,
         op: BinOp,
@@ -306,21 +303,21 @@ class ConstantPropagation(DataFlowAnalysis[ConstEnv]):
         # If either is bottom, result is bottom (unreachable)
         if left.is_bottom() or right.is_bottom():
             return ConstValue.bottom()
-        
+
         # If either is top, result is top (unknown)
         if left.is_top() or right.is_top():
             return ConstValue.top()
-        
+
         # Both are constants - evaluate
         lval = left.get_constant()
         rval = right.get_constant()
-        
+
         if not isinstance(lval, int) or not isinstance(rval, int):
             # Non-integer operations are complex
             if op == BinOp.EQ:
                 return ConstValue.constant(lval == rval)
             return ConstValue.top()
-        
+
         try:
             match op:
                 case BinOp.ADD:
@@ -343,16 +340,16 @@ class ConstantPropagation(DataFlowAnalysis[ConstEnv]):
                     return ConstValue.top()
         except Exception:
             return ConstValue.top()
-    
+
     def _eval_unaryop(self, op: UnaryOp, val: ConstValue) -> ConstValue:
         """Evaluate a unary operation on a constant value."""
         if val.is_bottom():
             return ConstValue.bottom()
         if val.is_top():
             return ConstValue.top()
-        
+
         cval = val.get_constant()
-        
+
         match op:
             case UnaryOp.NEG:
                 if isinstance(cval, int):
@@ -360,7 +357,7 @@ class ConstantPropagation(DataFlowAnalysis[ConstEnv]):
             case UnaryOp.NOT:
                 if isinstance(cval, bool):
                     return ConstValue.constant(not cval)
-        
+
         return ConstValue.top()
 
 
@@ -375,27 +372,27 @@ def fold_constants(
 ) -> int:
     """
     Apply constant folding to the CFG using analysis results.
-    
+
     Replaces:
     1. Variables with known constant values
     2. Operations on constants with their results
-    
+
     Returns the number of instructions modified.
     """
     changes = 0
-    
+
     for block in cfg.blocks:
         new_instructions = []
-        
+
         for i, instr in enumerate(block.instructions):
             env = analysis_result.instr_in.get((block.id, i), ConstEnv())
             folded = _fold_instruction(instr, env)
             new_instructions.append(folded)
             if folded is not instr:
                 changes += 1
-        
+
         block.instructions = new_instructions
-    
+
     return changes
 
 
@@ -406,33 +403,33 @@ def _fold_instruction(instr: Instruction, env: ConstEnv) -> Instruction:
             # Try to fold operands
             new_left = _fold_operand(left, env)
             new_right = _fold_operand(right, env)
-            
+
             # If both are now constants, evaluate
             if isinstance(new_left, Const) and isinstance(new_right, Const):
                 result = _eval_const_binop(op, new_left.value, new_right.value)
                 if result is not None:
                     return Copy(dest=dest, source=Const(result, _type_of(result)))
-            
+
             # Return with folded operands
             if new_left is not left or new_right is not right:
                 return BinaryOp(dest=dest, op=op, left=new_left, right=new_right)
-        
+
         case UnaryOperation(dest=dest, op=op, operand=operand):
             new_operand = _fold_operand(operand, env)
-            
+
             if isinstance(new_operand, Const):
                 result = _eval_const_unaryop(op, new_operand.value)
                 if result is not None:
                     return Copy(dest=dest, source=Const(result, _type_of(result)))
-            
+
             if new_operand is not operand:
                 return UnaryOperation(dest=dest, op=op, operand=new_operand)
-        
+
         case Copy(dest=dest, source=source):
             new_source = _fold_operand(source, env)
             if new_source is not source:
                 return Copy(dest=dest, source=new_source)
-    
+
     return instr
 
 
@@ -460,7 +457,7 @@ def _eval_const_binop(op: BinOp, left: int | bool | str, right: int | bool | str
         if op == BinOp.EQ:
             return left == right
         return None
-    
+
     try:
         match op:
             case BinOp.ADD:
@@ -516,21 +513,20 @@ def run_constant_propagation(
 ) -> tuple[DataFlowResult[ConstEnv], int]:
     """
     Run constant propagation on a CFG.
-    
+
     Args:
         cfg: The control flow graph to analyze
         params: Method parameters (start as unknown)
         fold: Whether to apply constant folding transformations
-    
+
     Returns:
         Tuple of (analysis results, number of folded instructions)
     """
     analysis = ConstantPropagation(params=params)
     result = analysis.analyze(cfg)
-    
+
     changes = 0
     if fold:
         changes = fold_constants(cfg, result)
-    
-    return result, changes
 
+    return result, changes

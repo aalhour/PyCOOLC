@@ -2,23 +2,15 @@
 Tests for utility functions (utils.py).
 """
 
-import pytest
-from io import StringIO
-import sys
-
-from pycoolc.utils import print_readable_ast
 from pycoolc import ast as AST
+from pycoolc.utils import print_readable_ast
 
 
 class TestPrintReadableAST:
     """Tests for the print_readable_ast function."""
 
     def test_prints_simple_class(self, capsys):
-        program = AST.Program(
-            classes=(
-                AST.Class(name="Main", parent="Object", features=()),
-            )
-        )
+        program = AST.Program(classes=(AST.Class(name="Main", parent="Object", features=()),))
         print_readable_ast(program)
         captured = capsys.readouterr()
         assert "Program" in captured.out
@@ -142,7 +134,7 @@ class TestPrintReadableAST:
         # Should show the class name as a value but not as an attribute label
         assert "name=" in captured.out
         # class_name attribute should be skipped
-        lines = captured.out.split('\n')
+        lines = captured.out.split("\n")
         assert not any("class_name=" in line for line in lines)
 
     def test_handles_complex_expression(self, capsys):
@@ -170,4 +162,3 @@ class TestPrintReadableAST:
         assert "Let" in captured.out
         assert "instance=" in captured.out
         assert "'x'" in captured.out
-

@@ -5,12 +5,13 @@ These tests verify that all example programs in the examples/ directory
 can be successfully parsed and (where applicable) semantically analyzed.
 """
 
-import pytest
 from pathlib import Path
+
+import pytest
+
+import pycoolc.ast as AST
 from pycoolc.parser import make_parser
 from pycoolc.semanalyser import make_semantic_analyser
-import pycoolc.ast as AST
-
 
 # Find all .cl files in the examples directory
 EXAMPLES_DIR = Path(__file__).parent.parent / "examples"
@@ -79,7 +80,7 @@ class TestExampleProgramsAnalyze:
     @pytest.mark.parametrize(
         "example_file",
         [f for f in EXAMPLE_FILES if f.name in COMPLETE_PROGRAMS],
-        ids=lambda f: f.name
+        ids=lambda f: f.name,
     )
     def test_example_analyzes(self, parser, analyzer, example_file):
         source = example_file.read_text(encoding="utf-8")
@@ -93,9 +94,7 @@ class TestLibraryFilesParseButNotAnalyze:
     """Library files parse but lack Main class, so semantic analysis fails."""
 
     @pytest.mark.parametrize(
-        "example_file",
-        [f for f in EXAMPLE_FILES if f.name in LIBRARY_FILES],
-        ids=lambda f: f.name
+        "example_file", [f for f in EXAMPLE_FILES if f.name in LIBRARY_FILES], ids=lambda f: f.name
     )
     def test_library_parses(self, parser, example_file):
         source = example_file.read_text(encoding="utf-8")

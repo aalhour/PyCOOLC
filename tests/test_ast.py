@@ -1,11 +1,10 @@
 """
 Tests for AST node classes.
 
-These tests verify the to_tuple(), to_readable(), __str__, and __repr__ 
+These tests verify the to_tuple(), to_readable(), __str__, and __repr__
 methods on AST nodes.
 """
 
-import pytest
 from pycoolc import ast as AST
 
 
@@ -219,17 +218,12 @@ class TestControlFlow:
 
     def test_if_to_readable(self):
         node = AST.If(
-            predicate=AST.Boolean(True),
-            then_body=AST.Integer(1),
-            else_body=AST.Integer(0)
+            predicate=AST.Boolean(True), then_body=AST.Integer(1), else_body=AST.Integer(0)
         )
         assert "If" in node.to_readable()
 
     def test_while_to_readable(self):
-        node = AST.WhileLoop(
-            predicate=AST.Boolean(True),
-            body=AST.Integer(1)
-        )
+        node = AST.WhileLoop(predicate=AST.Boolean(True), body=AST.Integer(1))
         assert "WhileLoop" in node.to_readable()
 
     def test_block_to_readable(self):
@@ -254,10 +248,7 @@ class TestCase:
     """Tests for Case node."""
 
     def test_to_readable(self):
-        node = AST.Case(
-            expr=AST.Self(),
-            actions=(("x", "Object", AST.Object("x")),)
-        )
+        node = AST.Case(expr=AST.Self(), actions=(("x", "Object", AST.Object("x")),))
         assert "Case" in node.to_readable()
 
 
@@ -265,19 +256,12 @@ class TestDispatch:
     """Tests for dispatch nodes."""
 
     def test_dynamic_dispatch_to_readable(self):
-        node = AST.DynamicDispatch(
-            instance=AST.Self(),
-            method="foo",
-            arguments=()
-        )
+        node = AST.DynamicDispatch(instance=AST.Self(), method="foo", arguments=())
         assert "DynamicDispatch" in node.to_readable()
 
     def test_static_dispatch_to_readable(self):
         node = AST.StaticDispatch(
-            instance=AST.Self(),
-            dispatch_type="Object",
-            method="foo",
-            arguments=()
+            instance=AST.Self(), dispatch_type="Object", method="foo", arguments=()
         )
         assert "StaticDispatch" in node.to_readable()
 
@@ -317,4 +301,3 @@ class TestAction:
     def test_to_readable(self):
         node = AST.Action(name="x", action_type="Int", body=AST.Object("x"))
         assert "Action" in node.to_readable()
-

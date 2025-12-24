@@ -6,7 +6,8 @@ including handling of strings, comments, and edge cases.
 """
 
 import pytest
-from pycoolc.lexer import make_lexer, PyCoolLexer
+
+from pycoolc.lexer import PyCoolLexer, make_lexer
 
 
 class TestLexerBasics:
@@ -193,26 +194,29 @@ class TestIdentifiersAndTypes:
 class TestKeywords:
     """Tests for COOL keyword tokenization."""
 
-    @pytest.mark.parametrize("keyword,expected_type", [
-        ("class", "CLASS"),
-        ("inherits", "INHERITS"),
-        ("if", "IF"),
-        ("then", "THEN"),
-        ("else", "ELSE"),
-        ("fi", "FI"),
-        ("while", "WHILE"),
-        ("loop", "LOOP"),
-        ("pool", "POOL"),
-        ("let", "LET"),
-        ("in", "IN"),
-        ("case", "CASE"),
-        ("of", "OF"),
-        ("esac", "ESAC"),
-        ("new", "NEW"),
-        ("not", "NOT"),
-        ("isvoid", "ISVOID"),
-        ("self", "SELF"),
-    ])
+    @pytest.mark.parametrize(
+        "keyword,expected_type",
+        [
+            ("class", "CLASS"),
+            ("inherits", "INHERITS"),
+            ("if", "IF"),
+            ("then", "THEN"),
+            ("else", "ELSE"),
+            ("fi", "FI"),
+            ("while", "WHILE"),
+            ("loop", "LOOP"),
+            ("pool", "POOL"),
+            ("let", "LET"),
+            ("in", "IN"),
+            ("case", "CASE"),
+            ("of", "OF"),
+            ("esac", "ESAC"),
+            ("new", "NEW"),
+            ("not", "NOT"),
+            ("isvoid", "ISVOID"),
+            ("self", "SELF"),
+        ],
+    )
     def test_keyword(self, keyword, expected_type):
         lexer = make_lexer()
         lexer.input(keyword)
@@ -223,23 +227,26 @@ class TestKeywords:
 class TestCaseInsensitiveKeywords:
     """Tests for case-insensitive keyword handling per COOL spec §2."""
 
-    @pytest.mark.parametrize("keyword,expected_type", [
-        # Uppercase versions
-        ("CLASS", "CLASS"),
-        ("INHERITS", "INHERITS"),
-        ("IF", "IF"),
-        ("THEN", "THEN"),
-        ("ELSE", "ELSE"),
-        ("NOT", "NOT"),
-        # Mixed case
-        ("Class", "CLASS"),
-        ("Inherits", "INHERITS"),
-        ("If", "IF"),
-        ("Then", "THEN"),
-        ("Else", "ELSE"),
-        ("Not", "NOT"),
-        ("WhIlE", "WHILE"),
-    ])
+    @pytest.mark.parametrize(
+        "keyword,expected_type",
+        [
+            # Uppercase versions
+            ("CLASS", "CLASS"),
+            ("INHERITS", "INHERITS"),
+            ("IF", "IF"),
+            ("THEN", "THEN"),
+            ("ELSE", "ELSE"),
+            ("NOT", "NOT"),
+            # Mixed case
+            ("Class", "CLASS"),
+            ("Inherits", "INHERITS"),
+            ("If", "IF"),
+            ("Then", "THEN"),
+            ("Else", "ELSE"),
+            ("Not", "NOT"),
+            ("WhIlE", "WHILE"),
+        ],
+    )
     def test_keyword_case_insensitive(self, keyword, expected_type):
         lexer = make_lexer()
         lexer.input(keyword)
@@ -250,18 +257,21 @@ class TestCaseInsensitiveKeywords:
 class TestOperators:
     """Tests for operator tokenization."""
 
-    @pytest.mark.parametrize("op,expected_type", [
-        ("+", "PLUS"),
-        ("-", "MINUS"),
-        ("*", "MULTIPLY"),
-        ("/", "DIVIDE"),
-        ("=", "EQ"),
-        ("<", "LT"),
-        ("<=", "LTEQ"),
-        ("<-", "ASSIGN"),
-        ("~", "INT_COMP"),
-        ("=>", "ARROW"),
-    ])
+    @pytest.mark.parametrize(
+        "op,expected_type",
+        [
+            ("+", "PLUS"),
+            ("-", "MINUS"),
+            ("*", "MULTIPLY"),
+            ("/", "DIVIDE"),
+            ("=", "EQ"),
+            ("<", "LT"),
+            ("<=", "LTEQ"),
+            ("<-", "ASSIGN"),
+            ("~", "INT_COMP"),
+            ("=>", "ARROW"),
+        ],
+    )
     def test_operator(self, op, expected_type):
         lexer = make_lexer()
         lexer.input(op)
@@ -272,17 +282,20 @@ class TestOperators:
 class TestDelimiters:
     """Tests for delimiter tokenization."""
 
-    @pytest.mark.parametrize("delim,expected_type", [
-        ("(", "LPAREN"),
-        (")", "RPAREN"),
-        ("{", "LBRACE"),
-        ("}", "RBRACE"),
-        (":", "COLON"),
-        (";", "SEMICOLON"),
-        (",", "COMMA"),
-        (".", "DOT"),
-        ("@", "AT"),
-    ])
+    @pytest.mark.parametrize(
+        "delim,expected_type",
+        [
+            ("(", "LPAREN"),
+            (")", "RPAREN"),
+            ("{", "LBRACE"),
+            ("}", "RBRACE"),
+            (":", "COLON"),
+            (";", "SEMICOLON"),
+            (",", "COMMA"),
+            (".", "DOT"),
+            ("@", "AT"),
+        ],
+    )
     def test_delimiter(self, delim, expected_type):
         lexer = make_lexer()
         lexer.input(delim)
@@ -345,7 +358,17 @@ class TestComplexTokenization:
         lexer.input("main(): Object { self };")
         tokens = list(lexer)
         types = [t.type for t in tokens]
-        assert types == ["ID", "LPAREN", "RPAREN", "COLON", "TYPE", "LBRACE", "SELF", "RBRACE", "SEMICOLON"]
+        assert types == [
+            "ID",
+            "LPAREN",
+            "RPAREN",
+            "COLON",
+            "TYPE",
+            "LBRACE",
+            "SELF",
+            "RBRACE",
+            "SEMICOLON",
+        ]
 
     def test_arithmetic_expression(self):
         lexer = make_lexer()
@@ -380,7 +403,18 @@ class TestComplexTokenization:
         lexer.input("case x of y : Int => 1; esac")
         tokens = list(lexer)
         types = [t.type for t in tokens]
-        assert types == ["CASE", "ID", "OF", "ID", "COLON", "TYPE", "ARROW", "INTEGER", "SEMICOLON", "ESAC"]
+        assert types == [
+            "CASE",
+            "ID",
+            "OF",
+            "ID",
+            "COLON",
+            "TYPE",
+            "ARROW",
+            "INTEGER",
+            "SEMICOLON",
+            "ESAC",
+        ]
 
 
 class TestLineNumbers:
@@ -400,7 +434,7 @@ class TestLexerAPI:
     def test_iterator_protocol(self):
         lexer = make_lexer()
         lexer.input("1 2 3")
-        tokens = [t for t in lexer]
+        tokens = list(lexer)
         assert len(tokens) == 3
 
     def test_token_method(self):
@@ -421,8 +455,7 @@ class TestLexerAPI:
         lexer = make_lexer()
         lexer.input("1 2 3")
         lexer.token()  # consume first token
-        clone = lexer.clone_ply_lexer()
+        lexer.clone_ply_lexer()
         # Clone should start from current position
         original_remaining = list(lexer)
         assert len(original_remaining) == 2
-

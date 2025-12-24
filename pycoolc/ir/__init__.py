@@ -21,5 +21,4 @@
 # 4. **SSA enables clean analysis**: When each variable is assigned exactly
 #    once, tracking definitions becomes trivial.
 
-__all__ = ["tac", "cfg", "translator", "ssa"]
-
+__all__ = ["cfg", "ssa", "tac", "translator"]

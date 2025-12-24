@@ -3,13 +3,12 @@
 
 __package__ = "pycoolc"
 __all__ = [
-    'lexer',
-    'parser', 
-    'ast',
-    'semanalyser',
-    'codegen',
-    'ir',
-    'optimization',
-    'pycoolc',
+    "ast",
+    "codegen",
+    "ir",
+    "lexer",
+    "optimization",
+    "parser",
+    "pycoolc",
+    "semanalyser",
 ]
-

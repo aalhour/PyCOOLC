@@ -6,8 +6,9 @@ from valid COOL programs and handles syntax errors appropriately.
 """
 
 import pytest
-from pycoolc.parser import make_parser
+
 import pycoolc.ast as AST
+from pycoolc.parser import make_parser
 
 
 @pytest.fixture
@@ -338,15 +339,15 @@ class TestLetExpressions:
         assert isinstance(let1, AST.Let)
         assert let1.instance == "x"
         assert let1.return_type == "Int"
-        
+
         let2 = let1.body
         assert isinstance(let2, AST.Let)
         assert let2.instance == "y"
-        
+
         let3 = let2.body
         assert isinstance(let3, AST.Let)
         assert let3.instance == "z"
-        
+
         # Innermost body should be the addition
         assert isinstance(let3.body, AST.Addition)
 
@@ -362,7 +363,7 @@ class TestLetExpressions:
         let1 = result.classes[0].features[0].body
         assert let1.instance == "x"
         assert let1.init_expr is None
-        
+
         let2 = let1.body
         assert let2.instance == "y"
         assert let2.init_expr is not None
@@ -461,11 +462,11 @@ class TestComplexPrograms:
         program = """
             class Counter {
                 count : Int <- 0;
-                
+
                 increment() : Int {
                     count <- count + 1
                 };
-                
+
                 get() : Int {
                     count
                 };
@@ -484,7 +485,7 @@ class TestParserAPI:
 
     def test_unbuilt_parser_raises(self):
         from pycoolc.parser import PyCoolParser
+
         p = PyCoolParser(build_parser=False)
         with pytest.raises(ValueError, match="Parser was not build"):
             p.parse("class Main { };")
-
