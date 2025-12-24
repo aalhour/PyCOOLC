@@ -1,39 +1,65 @@
 # Build artifacts
-poc/
 dist/
 build/
 *.egg
-*.egg-info
+*.egg-info/
+*.whl
 
 # Python bytecode
 __pycache__/
-*.pyc
-*.pyo
+*.py[cod]
+*$py.class
 
 # PLY generated files
 lextab.py
 parsetab.py
 yacctab.py
 parser.out
-*.out
 
 # Virtual environments
 .venv/
 venv/
 env/
+ENV/
 
-# IDE
+# IDE and editors
 .idea/
 .vscode/
 *.swp
 *.swo
+*~
+.project
+.pydevproject
 
-# Testing
+# Testing and coverage
 .pytest_cache/
 .coverage
+.coverage.*
 htmlcov/
 .tox/
+.nox/
+coverage.xml
+*.cover
 
-# OS
+# Type checking
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Linting
+.ruff_cache/
+
+# OS files
 .DS_Store
 Thumbs.db
+ehthumbs.db
+
+# Local development
+poc/
+*.local
+.env
+.env.*
+
+# Compiled MIPS output (keep examples clean)
+examples/*.s
+!examples/README.md
