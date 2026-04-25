@@ -644,6 +644,23 @@ class TestCaseExpression:
         """)
         assert "_method_Main_test:" in code
 
+    def test_case_branch_variable_dispatch(self):
+        """Case branch variable must use branch type for dispatch, not Object."""
+        code = compile_to_mips("""
+            class Foo {
+                foo() : Int { 1 };
+            };
+            class Main {
+                main() : Int {
+                    case new Foo of
+                        x : Foo => x.foo();
+                    esac
+                };
+            };
+        """)
+        # Dispatch on x should use Foo's method table, not Object's
+        assert "_method_Foo_foo" in code
+
 
 class TestSelfReference:
     """Tests for self reference handling."""

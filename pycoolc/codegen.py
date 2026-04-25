@@ -384,12 +384,7 @@ class MIPSCodeGenerator:
             case AST.Case(expr=case_expr, actions=actions):
                 self._collect_constants_from_expr(case_expr)
                 for action in actions:
-                    # Actions can be either Action objects or tuples (name, type, body)
-                    if isinstance(action, AST.Action):
-                        self._collect_constants_from_expr(action.body)
-                    elif isinstance(action, tuple) and len(action) == 3:
-                        _, _, body = action
-                        self._collect_constants_from_expr(body)
+                    self._collect_constants_from_expr(action.body)
 
             case AST.DynamicDispatch(instance=obj, arguments=args):
                 self._collect_constants_from_expr(obj)
@@ -1612,20 +1607,17 @@ class MIPSCodeGenerator:
         # Get class tag
         self._emit_instr("lw", "$t0", "0($a0)")  # Class tag
 
-        # Store expression result
-        self._emit_instr("sw", "$a0", "0($sp)")
+        # Store expression result (decrement BEFORE store to avoid corruption)
         self._emit_instr("addiu", "$sp", "$sp", "-4")
+        self._emit_instr("sw", "$a0", "0($sp)")
 
         done_label = self._new_label("case_done")
 
         # Generate branches (simplified - should sort by class tag)
         for action in actions:
-            if isinstance(action, AST.Action):
-                branch_name = action.name
-                branch_type = action.action_type
-                branch_body = action.body
-            else:
-                branch_name, branch_type, branch_body = action
+            branch_name = action.name
+            branch_type = action.action_type
+            branch_body = action.body
 
             self._new_label("case_branch")
             next_label = self._new_label("case_next")
@@ -1636,10 +1628,12 @@ class MIPSCodeGenerator:
                 self._emit_instr("li", "$t1", str(tag))
                 self._emit_instr("bne", "$t0", "$t1", next_label)
 
-            # Bind variable
+            # Bind variable with type for correct dispatch resolution
             old_offset = self._locals.get(branch_name)
+            old_type = self._local_types.get(branch_name)
             local_offset = -self._next_local_offset - 4
             self._locals[branch_name] = local_offset
+            self._local_types[branch_name] = branch_type
             self._next_local_offset += 4
 
             self._emit_instr("addiu", "$sp", "$sp", "-4")
@@ -1656,6 +1650,10 @@ class MIPSCodeGenerator:
                 self._locals[branch_name] = old_offset
             else:
                 del self._locals[branch_name]
+            if old_type is not None:
+                self._local_types[branch_name] = old_type
+            elif branch_name in self._local_types:
+                del self._local_types[branch_name]
 
             self._emit_instr("j", done_label)
             self._emit_label(next_label)
