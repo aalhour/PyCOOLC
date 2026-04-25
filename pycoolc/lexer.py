@@ -233,14 +233,6 @@ class PyCoolLexer:
     t_ASSIGN = r"\<\-"  # <-
     t_ARROW = r"\=\>"  # =>
 
-    @TOKEN(r"(true|false)")
-    def t_BOOLEAN(self, token):
-        """
-        The Bool Primitive Type Token Rule.
-        """
-        token.value = token.value == "true"
-        return token
-
     @TOKEN(r"\d+")
     def t_INTEGER(self, token):
         """
@@ -268,8 +260,15 @@ class PyCoolLexer:
 
         Identifiers start with lowercase. Keywords are case-insensitive,
         so we check lowercase version against reserved words.
+
+        Per COOL spec: true/false are the only case-sensitive keywords
+        and must be exactly lowercase to be boolean literals.
         """
-        token.type = self.basic_reserved.get(token.value.lower(), "ID")
+        if token.value in ("true", "false"):
+            token.type = "BOOLEAN"
+            token.value = token.value == "true"
+        else:
+            token.type = self.basic_reserved.get(token.value.lower(), "ID")
         return token
 
     @TOKEN(r"\n+")
@@ -495,12 +494,9 @@ class PyCoolLexer:
 
 def make_lexer(**kwargs) -> PyCoolLexer:
     """
-    Utility function.
-    :return: PyCoolLexer object.
+    Create and return a ready-to-use PyCoolLexer.
     """
-    a_lexer = PyCoolLexer(**kwargs)
-    a_lexer.build()
-    return a_lexer
+    return PyCoolLexer(**kwargs)
 
 
 if __name__ == "__main__":

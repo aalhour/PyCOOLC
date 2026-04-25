@@ -68,6 +68,40 @@ class TestBooleanTokens:
         assert token.type == "BOOLEAN"
         assert token.value is False
 
+    def test_true_prefix_is_identifier(self):
+        """'truevalue' must tokenize as a single ID, not BOOLEAN + ID."""
+        lexer = make_lexer()
+        lexer.input("truevalue")
+        tokens = list(lexer)
+        assert len(tokens) == 1
+        assert tokens[0].type == "ID"
+        assert tokens[0].value == "truevalue"
+
+    def test_false_prefix_is_identifier(self):
+        """'falsehood' must tokenize as a single ID, not BOOLEAN + ID."""
+        lexer = make_lexer()
+        lexer.input("falsehood")
+        tokens = list(lexer)
+        assert len(tokens) == 1
+        assert tokens[0].type == "ID"
+        assert tokens[0].value == "falsehood"
+
+    def test_true_with_digits_is_identifier(self):
+        lexer = make_lexer()
+        lexer.input("true123")
+        tokens = list(lexer)
+        assert len(tokens) == 1
+        assert tokens[0].type == "ID"
+        assert tokens[0].value == "true123"
+
+    def test_true_with_underscore_is_identifier(self):
+        lexer = make_lexer()
+        lexer.input("true_flag")
+        tokens = list(lexer)
+        assert len(tokens) == 1
+        assert tokens[0].type == "ID"
+        assert tokens[0].value == "true_flag"
+
 
 class TestStringTokens:
     """Tests for string literal tokenization."""
