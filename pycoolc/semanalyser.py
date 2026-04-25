@@ -318,7 +318,7 @@ class PyCoolSemanticAnalyser:
             raise TypeError("Program AST object is not of type 'AST.Program'!")
 
         self._init_collections(program_ast)
-        self._default_undefined_parent_classes_to_object()
+        self._check_undefined_parent_classes()
         self._invalidate_inheritance_from_builtin_classes()
         self._check_cyclic_inheritance_relations()
 
@@ -328,6 +328,9 @@ class PyCoolSemanticAnalyser:
 
         # Validate Main class exists with main() method
         self._check_main_class()
+
+        # Validate feature declarations (duplicate methods, SELF_TYPE in formals, etc.)
+        self._check_feature_declarations()
 
         # Validate method overriding rules
         self._check_method_overriding()
@@ -364,99 +367,85 @@ class PyCoolSemanticAnalyser:
         object_class = AST.Class(
             name=OBJECT_CLASS,
             parent=None,
-            features=[
-                # Abort method: halts the program.
-                AST.ClassMethod(name="abort", formal_params=[], return_type="Object", body=None),
-                # Copy method: copies the object.
-                AST.ClassMethod(name="copy", formal_params=[], return_type="SELF_TYPE", body=None),
-                # type_name method: returns a string representation of the class name.
+            features=(
+                AST.ClassMethod(name="abort", formal_params=(), return_type="Object", body=None),
+                AST.ClassMethod(name="copy", formal_params=(), return_type="SELF_TYPE", body=None),
                 AST.ClassMethod(
-                    name="type_name", formal_params=[], return_type="String", body=None
+                    name="type_name", formal_params=(), return_type="String", body=None
                 ),
-            ],
+            ),
         )
 
         # IO Class
         io_class = AST.Class(
             name=IO_CLASS,
             parent="Object",
-            features=[
-                # in_int: reads an integer from stdio
-                AST.ClassMethod(name="in_int", formal_params=[], return_type="Int", body=None),
-                # in_string: reads a string from stdio
+            features=(
+                AST.ClassMethod(name="in_int", formal_params=(), return_type="Int", body=None),
                 AST.ClassMethod(
-                    name="in_string", formal_params=[], return_type="String", body=None
+                    name="in_string", formal_params=(), return_type="String", body=None
                 ),
-                # out_int: outputs an integer to stdio
                 AST.ClassMethod(
                     name="out_int",
-                    formal_params=[AST.FormalParameter("arg", "Int")],
+                    formal_params=(AST.FormalParameter("arg", "Int"),),
                     return_type="SELF_TYPE",
                     body=None,
                 ),
-                # out_string: outputs a string to stdio
                 AST.ClassMethod(
                     name="out_string",
-                    formal_params=[AST.FormalParameter("arg", "String")],
+                    formal_params=(AST.FormalParameter("arg", "String"),),
                     return_type="SELF_TYPE",
                     body=None,
                 ),
-            ],
+            ),
         )
 
         # Int Class
         int_class = AST.Class(
             name=INTEGER_CLASS,
             parent=object_class.name,
-            features=[
-                # _val attribute: integer un-boxed value
+            features=(
                 AST.ClassAttribute(
                     name="_val", attr_type=UNBOXED_PRIMITIVE_VALUE_TYPE, init_expr=None
-                )
-            ],
+                ),
+            ),
         )
 
         # Bool Class
         bool_class = AST.Class(
             name=BOOLEAN_CLASS,
             parent=object_class.name,
-            features=[
-                # _val attribute: boolean un-boxed value
+            features=(
                 AST.ClassAttribute(
                     name="_val", attr_type=UNBOXED_PRIMITIVE_VALUE_TYPE, init_expr=None
-                )
-            ],
+                ),
+            ),
         )
 
         # String Class
         string_class = AST.Class(
             name=STRING_CLASS,
             parent=object_class.name,
-            features=[
-                # _val attribute: string length
+            features=(
                 AST.ClassAttribute(name="_val", attr_type="Int", init_expr=None),
-                # _str_field attribute: an un-boxed, untyped string value
                 AST.ClassAttribute("_str_field", UNBOXED_PRIMITIVE_VALUE_TYPE, None),
-                # length method: returns the string's length
-                AST.ClassMethod(name="length", formal_params=[], return_type="Int", body=None),
-                # concat method: concatenates this string with another
+                AST.ClassMethod(name="length", formal_params=(), return_type="Int", body=None),
                 AST.ClassMethod(
                     name="concat",
-                    formal_params=[AST.FormalParameter("arg", "String")],
+                    formal_params=(AST.FormalParameter("arg", "String"),),
                     return_type="String",
                     body=None,
                 ),
-                # substr method: returns the substring between two integer indices
                 AST.ClassMethod(
                     name="substr",
-                    formal_params=[
+                    formal_params=(
                         AST.FormalParameter("arg1", "Int"),
                         AST.FormalParameter("arg2", "Int"),
-                    ],
+                    ),
                     return_type="String",
                     body=None,
                 ),
-            ],
+            ),
         )
 
         # Built in classes collection
@@ -515,42 +504,19 @@ class PyCoolSemanticAnalyser:
 
         return True
 
-    def _default_undefined_parent_classes_to_object(self) -> None:
+    def _check_undefined_parent_classes(self) -> None:
         """
-        Default any undefined parent classes to Object.
+        Raise an error if any class inherits from an undefined class.
 
-        If a class inherits from an undefined class, we assume it meant Object.
+        Per COOL spec, all parent classes must be defined.
         """
-        if not self._inheritance_graph:
-            warning("Inheritance Graph is empty!")
-
-        if not self._classes_map:
-            warning("Classes Map is empty!")
-
-        # Assume self._inheritance_graph and self._classes_map are initialized
-        non_existing_parents = [
-            klass
-            for klass in self._inheritance_graph
-            if klass not in self._classes_map and klass != OBJECT_CLASS
-        ]
-
-        for parent_klass in non_existing_parents:
-            # Warn the user about this
-            warning(
-                f'Found an undefined parent class: "{parent_klass}". Defaulting all its children\'s to the Object parent class.'
-            )
-
-            # Add the child classes of this nonexisting parent class to the set of classes
-            #   that inherit from the "Object" class.
-            self._inheritance_graph[OBJECT_CLASS] |= self._inheritance_graph[parent_klass]
-
-            # For every child class that inherits from the nonexisting parent, modify their
-            #   parent attribute in their AST Node to have "Object" instead.
-            for child_klass in self._inheritance_graph[parent_klass]:
-                self._classes_map[child_klass].parent = OBJECT_CLASS
-
-            # Delete this nonexistent parent class from the inheritance map
-            del self._inheritance_graph[parent_klass]
+        for parent_name in list(self._inheritance_graph.keys()):
+            if parent_name not in self._classes_map and parent_name != OBJECT_CLASS:
+                children = self._inheritance_graph[parent_name]
+                child_list = ", ".join(f"'{c}'" for c in children)
+                raise SemanticAnalysisError(
+                    f"Class(es) {child_list} inherit from undefined class '{parent_name}'."
+                )
 
     def _invalidate_inheritance_from_builtin_classes(self) -> None:
         """
@@ -775,6 +741,40 @@ class PyCoolSemanticAnalyser:
     # =========================================================================
     #                     VALIDATION PASSES
     # =========================================================================
+
+    def _check_feature_declarations(self) -> None:
+        """
+        Validate feature declarations within each class.
+
+        Checks:
+        - No duplicate method names in the same class
+        - SELF_TYPE not used as formal parameter type
+        """
+        for class_name, klass in self._classes_map.items():
+            # Skip builtin classes
+            if class_name in {OBJECT_CLASS, IO_CLASS, INTEGER_CLASS, BOOLEAN_CLASS, STRING_CLASS}:
+                continue
+
+            method_names: set[str] = set()
+
+            for feature in klass.features:
+                if isinstance(feature, AST.ClassMethod):
+                    # Check duplicate methods
+                    if feature.name in method_names:
+                        raise SemanticAnalysisError(
+                            f"Method '{feature.name}' is defined multiple times "
+                            f"in class '{class_name}'."
+                        )
+                    method_names.add(feature.name)
+
+                    # Check SELF_TYPE in formal params
+                    for param in feature.formal_params:
+                        if param.param_type == SELF_TYPE:
+                            raise SemanticAnalysisError(
+                                f"Formal parameter '{param.name}' in method "
+                                f"'{feature.name}' of class '{class_name}' "
+                                f"cannot have type SELF_TYPE."
+                            )
 
     def _check_main_class(self) -> None:
         """
@@ -1029,6 +1029,10 @@ class PyCoolSemanticAnalyser:
 
             # Assignment
             case AST.Assignment(instance=instance, expr=value_expr):
+                # Cannot assign to self
+                if instance.name == "self":
+                    raise SemanticAnalysisError("Cannot assign to 'self'.")
+
                 # Look up the variable type
                 var_type = env.lookup_object(instance.name)
                 if var_type is None:
@@ -1175,13 +1179,15 @@ class PyCoolSemanticAnalyser:
                 seen_types: set[str] = set()
 
                 for action in actions:
-                    # action is a tuple (name, type, body) or AST.Action
-                    if isinstance(action, AST.Action):
-                        branch_name = action.name
-                        branch_type = action.action_type
-                        branch_body = action.body
-                    else:
-                        branch_name, branch_type, branch_body = action
+                    branch_name = action.name
+                    branch_type = action.action_type
+                    branch_body = action.body
+
+                    # SELF_TYPE not allowed as case branch type
+                    if branch_type == SELF_TYPE:
+                        raise SemanticAnalysisError(
+                            "SELF_TYPE cannot be used as a case branch type."
+                        )
 
                     # Check for duplicate branch types
                     if branch_type in seen_types:

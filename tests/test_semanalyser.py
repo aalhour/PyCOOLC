@@ -162,12 +162,11 @@ class TestInheritanceGraph:
         child_class = next(c for c in result.classes if c.name == "Child")
         assert child_class.parent == "Parent"
 
-    def test_undefined_parent_defaults_to_object(self, parser, analyzer):
-        # If parent doesn't exist, it should default to Object
+    def test_undefined_parent_raises_error(self, parser, analyzer):
+        """Inheriting from an undefined class must be an error per COOL spec."""
         ast = parser.parse(f"class Child inherits NonExistent {{ }}; {MAIN_CLASS}")
-        result = analyzer.transform(ast)
-        child_class = next(c for c in result.classes if c.name == "Child")
-        assert child_class.parent == "Object"
+        with pytest.raises(SemanticAnalysisError, match="undefined class 'NonExistent'"):
+            analyzer.transform(ast)
 
 
 class TestInheritanceRestrictions:
@@ -598,6 +597,62 @@ class TestAttributeRedefinition:
         # Should not raise
         result = analyzer.transform(ast)
         assert isinstance(result, AST.Program)
+
+
+class TestFeatureDeclarations:
+    """Tests for feature declaration validation."""
+
+    def test_duplicate_method_raises_error(self, parser, analyzer):
+        """Same method name twice in one class must be an error."""
+        ast = parser.parse("""
+            class Main {
+                foo() : Int { 0 };
+                foo() : Int { 1 };
+                main() : Object { self };
+            };
+        """)
+        with pytest.raises(SemanticAnalysisError, match="defined multiple times"):
+            analyzer.transform(ast)
+
+    def test_self_type_in_formal_param_raises_error(self, parser, analyzer):
+        """SELF_TYPE cannot be used as a formal parameter type."""
+        ast = parser.parse("""
+            class Main {
+                foo(x : SELF_TYPE) : Int { 0 };
+                main() : Object { self };
+            };
+        """)
+        with pytest.raises(SemanticAnalysisError, match="cannot have type SELF_TYPE"):
+            analyzer.transform(ast)
+
+    def test_self_type_in_case_branch_raises_error(self, parser, analyzer):
+        """SELF_TYPE cannot be used as a case branch type."""
+        ast = parser.parse("""
+            class Main {
+                main() : Object {
+                    case self of
+                        x : SELF_TYPE => self;
+                    esac
+                };
+            };
+        """)
+        with pytest.raises(
+            SemanticAnalysisError, match="SELF_TYPE cannot be used as a case branch"
+        ):
+            analyzer.transform(ast)
+
+    def test_assignment_to_self_is_syntax_error(self, parser):
+        """'self <- expr' is rejected at parse level (self is not an ID token)."""
+        parser.parse("""
+            class Main {
+                main() : Object {
+                    self <- new Main
+                };
+            };
+        """)
+        # Parser records errors because 'self' is SELF token, not ID,
+        # so 'self <- expr' doesn't match the assignment rule.
+        assert len(parser.error_list) > 0
 
 
 class TestTypeChecking:
