@@ -60,6 +60,7 @@ poc/
 .env
 .env.*
 
-# Compiled MIPS output (keep examples clean)
+# Compiled MIPS output (generated files, not hello_world.s which is checked in)
 examples/*.s
+!examples/hello_world.s
 !examples/README.md

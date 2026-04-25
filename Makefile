@@ -94,6 +94,8 @@ test-coverage: ## Generate code coverage report
 
 ci: check unit-tests ## Run full CI pipeline (lint, format, typecheck, tests)
 
+all: build format check test examples run-hello ## Runs clean, format, build, check, test, examples, run-hello targets
+
 ##@ Examples
 
 examples: ## Compile all example programs
@@ -120,17 +122,17 @@ run-hello: ## Compile and run hello_world.cl
 
 build: clean ## Build distribution packages
 	@echo "$(CYAN)Building distribution packages...$(RESET)"
-	$(PYTHON) -m build
+	$(VENV_BIN)/python -m build
 	@echo "$(GREEN)Done! Packages in dist/$(RESET)"
 
 publish-test: build ## Upload to TestPyPI
 	@echo "$(CYAN)Uploading to TestPyPI...$(RESET)"
-	$(PYTHON) -m twine upload --repository testpypi dist/*
+	$(VENV_BIN)/python -m twine upload --repository testpypi dist/*
 
 publish: build ## Upload to PyPI (use with caution!)
 	@echo "$(RED)WARNING: This will publish to the real PyPI!$(RESET)"
 	@read -p "Are you sure? [y/N] " confirm && [ "$$confirm" = "y" ]
-	$(PYTHON) -m twine upload dist/*
+	$(VENV_BIN)/python -m twine upload dist/*
 
 ##@ Cleanup
 
@@ -142,7 +144,7 @@ clean: ## Clean build artifacts and caches
 	rm -rf tests/__pycache__/ tests/**/__pycache__/
 	rm -rf htmlcov/ .coverage
 	rm -f parser.out parsetab.py
-	rm -f examples/*.s
+	find examples -name '*.s' ! -name 'hello_world.s' -delete
 	@echo "$(GREEN)Done!$(RESET)"
 
 clean-venv: ## Remove the virtual environment
