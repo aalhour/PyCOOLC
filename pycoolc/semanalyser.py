@@ -746,16 +746,26 @@ class PyCoolSemanticAnalyser:
         """
         Validate feature declarations within each class.
 
-        Checks:
+        Checks per COOL spec:
+        - No class named SELF_TYPE
         - No duplicate method names in the same class
+        - No duplicate attribute names in the same class
+        - No duplicate formal parameter names in a method
         - SELF_TYPE not used as formal parameter type
+        - SELF_TYPE not used as attribute declared type
+        - Static dispatch target cannot be SELF_TYPE
         """
+        # Check for class named SELF_TYPE
+        if SELF_TYPE in self._classes_map:
+            raise SemanticAnalysisError("Cannot define a class named 'SELF_TYPE'.")
+
         for class_name, klass in self._classes_map.items():
             # Skip builtin classes
             if class_name in {OBJECT_CLASS, IO_CLASS, INTEGER_CLASS, BOOLEAN_CLASS, STRING_CLASS}:
                 continue
 
             method_names: set[str] = set()
+            attr_names: set[str] = set()
 
             for feature in klass.features:
                 if isinstance(feature, AST.ClassMethod):
@@ -768,6 +778,7 @@ class PyCoolSemanticAnalyser:
                     method_names.add(feature.name)
 
                     # Check SELF_TYPE in formal params
+                    param_names: set[str] = set()
                     for param in feature.formal_params:
                         if param.param_type == SELF_TYPE:
                             raise SemanticAnalysisError(
@@ -775,6 +786,29 @@ class PyCoolSemanticAnalyser:
                                 f"'{feature.name}' of class '{class_name}' "
                                 f"cannot have type SELF_TYPE."
                             )
+                        # Check duplicate formal names
+                        if param.name in param_names:
+                            raise SemanticAnalysisError(
+                                f"Duplicate formal parameter '{param.name}' in method "
+                                f"'{feature.name}' of class '{class_name}'."
+                            )
+                        param_names.add(param.name)
+
+                elif isinstance(feature, AST.ClassAttribute):
+                    # Check duplicate attributes in same class
+                    if feature.name in attr_names:
+                        raise SemanticAnalysisError(
+                            f"Attribute '{feature.name}' is defined multiple times "
+                            f"in class '{class_name}'."
+                        )
+                    attr_names.add(feature.name)
+
+                    # SELF_TYPE not allowed as attribute type
+                    if feature.attr_type == SELF_TYPE:
+                        raise SemanticAnalysisError(
+                            f"Attribute '{feature.name}' in class '{class_name}' "
+                            f"cannot have type SELF_TYPE."
+                        )
 
     def _check_main_class(self) -> None:
         """
@@ -1189,6 +1223,12 @@ class PyCoolSemanticAnalyser:
                             "SELF_TYPE cannot be used as a case branch type."
                         )
 
+                    # Branch type must be a defined class
+                    if branch_type not in self._classes_map:
+                        raise SemanticAnalysisError(
+                            f"Undefined type '{branch_type}' in case branch."
+                        )
+
                     # Check for duplicate branch types
                     if branch_type in seen_types:
                         raise SemanticAnalysisError(
@@ -1218,6 +1258,12 @@ class PyCoolSemanticAnalyser:
             case AST.StaticDispatch(
                 instance=obj, dispatch_type=static_type, method=method_name, arguments=args
             ):
+                # SELF_TYPE cannot be used as static dispatch type
+                if static_type == SELF_TYPE:
+                    raise SemanticAnalysisError(
+                        "SELF_TYPE cannot be used as the dispatch type in static dispatch."
+                    )
+
                 obj_type = self._infer_type(obj, env)
 
                 # Check obj conforms to static type

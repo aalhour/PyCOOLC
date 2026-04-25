@@ -654,6 +654,71 @@ class TestFeatureDeclarations:
         # so 'self <- expr' doesn't match the assignment rule.
         assert len(parser.error_list) > 0
 
+    def test_class_named_self_type_raises_error(self, parser, analyzer):
+        """Cannot define a class named SELF_TYPE."""
+        ast = parser.parse(f"class SELF_TYPE {{ }}; {MAIN_CLASS}")
+        with pytest.raises(SemanticAnalysisError, match="Cannot define a class named 'SELF_TYPE'"):
+            analyzer.transform(ast)
+
+    def test_duplicate_formal_params_raises_error(self, parser, analyzer):
+        """Duplicate formal parameter names must be an error."""
+        ast = parser.parse("""
+            class Main {
+                foo(x : Int, x : Bool) : Object { self };
+                main() : Object { self };
+            };
+        """)
+        with pytest.raises(SemanticAnalysisError, match="Duplicate formal parameter 'x'"):
+            analyzer.transform(ast)
+
+    def test_duplicate_attribute_in_same_class_raises_error(self, parser, analyzer):
+        """Duplicate attribute names in the same class must be an error."""
+        ast = parser.parse("""
+            class Main {
+                x : Int;
+                x : Bool;
+                main() : Object { self };
+            };
+        """)
+        with pytest.raises(SemanticAnalysisError, match="defined multiple times"):
+            analyzer.transform(ast)
+
+    def test_self_type_as_attribute_type_raises_error(self, parser, analyzer):
+        """SELF_TYPE cannot be used as an attribute type."""
+        ast = parser.parse("""
+            class Main {
+                x : SELF_TYPE;
+                main() : Object { self };
+            };
+        """)
+        with pytest.raises(SemanticAnalysisError, match="cannot have type SELF_TYPE"):
+            analyzer.transform(ast)
+
+    def test_static_dispatch_to_self_type_raises_error(self, parser, analyzer):
+        """SELF_TYPE cannot be used as the dispatch type in static dispatch."""
+        ast = parser.parse("""
+            class Main {
+                foo() : Object { self };
+                main() : Object { self@SELF_TYPE.foo() };
+            };
+        """)
+        with pytest.raises(SemanticAnalysisError, match="SELF_TYPE cannot be used as the dispatch"):
+            analyzer.transform(ast)
+
+    def test_undefined_case_branch_type_raises_error(self, parser, analyzer):
+        """Case branch with undefined type must be an error."""
+        ast = parser.parse("""
+            class Main {
+                main() : Object {
+                    case self of
+                        x : NoSuchType => self;
+                    esac
+                };
+            };
+        """)
+        with pytest.raises(SemanticAnalysisError, match="Undefined type 'NoSuchType'"):
+            analyzer.transform(ast)
+
 
 class TestTypeChecking:
     """Tests for expression type checking."""
