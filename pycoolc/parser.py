@@ -400,7 +400,7 @@ class PyCoolParser:
         """
         action : ID COLON TYPE ARROW expression SEMICOLON
         """
-        parse[0] = (parse[1], parse[3], parse[5])
+        parse[0] = AST.Action(name=parse[1], action_type=parse[3], body=parse[5])
 
     # ######################### UNARY OPERATIONS #######################################
 
@@ -532,12 +532,9 @@ class PyCoolParser:
 
 def make_parser(**kwargs) -> PyCoolParser:
     """
-    Utility function.
-    :return: PyCoolParser object.
+    Create and return a ready-to-use PyCoolParser.
     """
-    a_parser = PyCoolParser(**kwargs)
-    a_parser.build()
-    return a_parser
+    return PyCoolParser(**kwargs)
 
 
 if __name__ == "__main__":

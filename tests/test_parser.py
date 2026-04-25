@@ -385,6 +385,11 @@ class TestCaseExpressions:
         expr = result.classes[0].features[0].body
         assert isinstance(expr, AST.Case)
         assert len(expr.actions) == 1
+        action = expr.actions[0]
+        assert isinstance(action, AST.Action)
+        assert action.name == "y"
+        assert action.action_type == "Int"
+        assert isinstance(action.body, AST.Integer)
 
     def test_multi_branch_case(self, parser):
         result = parser.parse("""
@@ -401,6 +406,10 @@ class TestCaseExpressions:
         expr = result.classes[0].features[0].body
         assert isinstance(expr, AST.Case)
         assert len(expr.actions) == 3
+        assert all(isinstance(a, AST.Action) for a in expr.actions)
+        assert expr.actions[0].name == "a"
+        assert expr.actions[1].action_type == "String"
+        assert expr.actions[2].action_type == "Bool"
 
 
 class TestNewAndIsvoid:

@@ -439,7 +439,6 @@ class TestLocalAssignment:
 class TestCaseExpression:
     """Test translation of case expressions."""
 
-    @pytest.mark.skip(reason="Case actions are tuples not AST.Action - translator bug")
     def test_case_simple(self, parser, translator):
         """Simple case expression."""
         ast = parser.parse("""
@@ -458,7 +457,6 @@ class TestCaseExpression:
         labels = [i for i in instrs if isinstance(i, LabelInstr)]
         assert len(labels) > 0
 
-    @pytest.mark.skip(reason="Case actions are tuples not AST.Action - translator bug")
     def test_case_multiple_branches(self, parser, translator):
         """Case with multiple branches."""
         ast = parser.parse("""

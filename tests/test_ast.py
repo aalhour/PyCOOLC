@@ -248,7 +248,8 @@ class TestCase:
     """Tests for Case node."""
 
     def test_to_readable(self):
-        node = AST.Case(expr=AST.Self(), actions=(("x", "Object", AST.Object("x")),))
+        action = AST.Action(name="x", action_type="Object", body=AST.Object("x"))
+        node = AST.Case(expr=AST.Self(), actions=(action,))
         assert "Case" in node.to_readable()
 
 
