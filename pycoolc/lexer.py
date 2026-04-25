@@ -10,7 +10,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterator
+from collections.abc import Collection, Iterator
 from typing import Any
 
 import ply.lex as lex
@@ -65,7 +65,7 @@ class PyCoolLexer:
         """
         self.lexer: Any = None
         self.tokens: tuple[str, ...] = ()
-        self.reserved: dict[str, str] = {}
+        self.reserved: Collection[str] = ()
         self.last_token: LexToken | None = None
 
         # Configuration - stored for rebuild

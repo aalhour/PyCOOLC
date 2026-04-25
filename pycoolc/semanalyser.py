@@ -577,8 +577,8 @@ class PyCoolSemanticAnalyser:
 
         Returns [type_name, parent, grandparent, ..., Object].
         """
-        ancestors = []
-        current = type_name
+        ancestors: list[str] = []
+        current: str | None = type_name
         while current is not None:
             ancestors.append(current)
             current = self.get_parent(current)
@@ -1392,6 +1392,9 @@ if __name__ == "__main__":
 
     parser = make_parser()
     parse_result = parser.parse(cool_program_code)
+    if parse_result is None:
+        print("Error: Parsing failed", file=sys.stderr)
+        sys.exit(1)
     sema_analyser = make_semantic_analyser()
     sema_result = sema_analyser.transform(parse_result)
     print_readable_ast(sema_result)

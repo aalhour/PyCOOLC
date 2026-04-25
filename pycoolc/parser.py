@@ -519,7 +519,10 @@ class PyCoolParser:
         """
         if self.parser is None:
             raise ValueError("Parser was not build, try building it first with the build() method.")
-        return self.parser.parse(source_code)
+        result = self.parser.parse(source_code)
+        if result is not None and not isinstance(result, AST.Program):
+            return None
+        return result
 
 
 # -----------------------------------------------------------------------------

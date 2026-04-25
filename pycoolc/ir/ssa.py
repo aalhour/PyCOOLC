@@ -85,6 +85,7 @@ from pycoolc.ir.tac import (
     Instruction,
     Label,
     LabelInstr,
+    Operand,
     Phi,
     TACMethod,
     Var,
@@ -148,14 +149,14 @@ class SSABuilder:
     def _build_dominator_tree(
         self,
         cfg: ControlFlowGraph,
-        idoms: dict[str, str],
-    ) -> dict[str, list[str]]:
+        idoms: dict[int, int | None],
+    ) -> dict[int, list[int]]:
         """
         Build the dominator tree from immediate dominators.
 
         Returns a dict mapping each block to its children in the dom tree.
         """
-        tree: dict[str, list[str]] = defaultdict(list)
+        tree: dict[int, list[int]] = defaultdict(list)
 
         for block_id, idom_id in idoms.items():
             if idom_id is not None and idom_id != block_id:
@@ -166,8 +167,8 @@ class SSABuilder:
     def _compute_dominance_frontiers(
         self,
         cfg: ControlFlowGraph,
-        idoms: dict[str, str],
-    ) -> dict[str, set[str]]:
+        idoms: dict[int, int | None],
+    ) -> dict[int, set[int]]:
         """
         Compute dominance frontiers for each block.
 
@@ -177,7 +178,7 @@ class SSABuilder:
 
         This is where we need φ-functions for definitions in B.
         """
-        frontiers: dict[str, set[str]] = {b.id: set() for b in cfg.blocks}
+        frontiers: dict[int, set[int]] = {b.id: set() for b in cfg.blocks}
 
         for block in cfg.blocks:
             if len(block.predecessors) < 2:
@@ -187,24 +188,26 @@ class SSABuilder:
                 runner = pred.id
 
                 # Walk up the dominator tree until we find block's idom
-                while runner != idoms.get(block.id):
+                block_idom = idoms.get(block.id)
+                while runner != block_idom:
                     frontiers[runner].add(block.id)
-                    runner = idoms.get(runner)
-                    if runner is None:
+                    next_runner = idoms.get(runner)
+                    if next_runner is None:
                         break
+                    runner = next_runner
 
         return frontiers
 
     def _find_variable_definitions(
         self,
         cfg: ControlFlowGraph,
-    ) -> dict[str, set[str]]:
+    ) -> dict[str, set[int]]:
         """
         Find all blocks that define each variable.
 
         Returns: var_name -> set of block IDs that assign to var
         """
-        var_defs: dict[str, set[str]] = defaultdict(set)
+        var_defs: dict[str, set[int]] = defaultdict(set)
 
         for block in cfg.blocks:
             for instr in block.instructions:
@@ -217,9 +220,9 @@ class SSABuilder:
     def _compute_phi_locations(
         self,
         cfg: ControlFlowGraph,
-        var_defs: dict[str, set[str]],
-        frontiers: dict[str, set[str]],
-    ) -> dict[str, set[str]]:
+        var_defs: dict[str, set[int]],
+        frontiers: dict[int, set[int]],
+    ) -> dict[str, set[int]]:
         """
         Compute where to insert φ-functions for each variable.
 
@@ -227,7 +230,7 @@ class SSABuilder:
 
         Returns: var_name -> set of block IDs needing φ for that var
         """
-        phi_locs: dict[str, set[str]] = defaultdict(set)
+        phi_locs: dict[str, set[int]] = defaultdict(set)
 
         for var, def_blocks in var_defs.items():
             # Worklist algorithm for iterated dominance frontier
@@ -251,7 +254,7 @@ class SSABuilder:
     def _insert_phi_functions(
         self,
         cfg: ControlFlowGraph,
-        phi_locations: dict[str, set[str]],
+        phi_locations: dict[str, set[int]],
     ) -> None:
         """
         Insert φ-functions at the computed locations.
@@ -268,7 +271,7 @@ class SSABuilder:
                 # Will be filled in during renaming
                 phi = Phi(
                     dest=Var(var),
-                    sources=[(Var(var), Label(pred.id)) for pred in block.predecessors],
+                    sources=[(Var(var), Label(str(pred.id))) for pred in block.predecessors],
                 )
 
                 # Insert at the beginning (after any labels)
@@ -283,8 +286,8 @@ class SSABuilder:
     def _rename_variables(
         self,
         cfg: ControlFlowGraph,
-        dom_tree: dict[str, list[str]],
-        var_defs: dict[str, set[str]],
+        dom_tree: dict[int, list[int]],
+        var_defs: dict[str, set[int]],
     ) -> None:
         """
         Rename variables to SSA form.
@@ -310,9 +313,9 @@ class SSABuilder:
 
     def _rename_block(
         self,
-        block_id: str,
-        block_map: dict[str, BasicBlock],
-        dom_tree: dict[str, list[str]],
+        block_id: int,
+        block_map: dict[int, BasicBlock],
+        dom_tree: dict[int, list[int]],
         counters: dict[str, int],
         stacks: dict[str, list[int]],
     ) -> None:
@@ -379,10 +382,12 @@ class SSABuilder:
     def _rename_phi_source(
         self,
         phi: Phi,
-        pred_block_id: str,
+        pred_block_id: int,
         stacks: dict[str, list[int]],
     ) -> None:
         """Update a φ-function's source for a specific predecessor."""
+        if not isinstance(phi.dest, Var):
+            return
         var_name = phi.dest.name.split("_")[0]  # Original variable name
 
         if stacks.get(var_name):
@@ -390,9 +395,10 @@ class SSABuilder:
             new_name = f"{var_name}_{current_version}"
 
             # Update the source for this predecessor
-            new_sources = []
+            new_sources: list[tuple[Operand, Label]] = []
+            pred_label = str(pred_block_id)
             for val, label in phi.sources:
-                if label.name == pred_block_id:
+                if label.name == pred_label:
                     new_sources.append((Var(new_name), label))
                 else:
                     new_sources.append((val, label))
@@ -407,7 +413,7 @@ class SSABuilder:
 
         for block in order:
             # Add a label for the block
-            instructions.append(LabelInstr(Label(block.id)))
+            instructions.append(LabelInstr(Label(str(block.id))))
 
             # Add the block's instructions
             for instr in block.instructions:

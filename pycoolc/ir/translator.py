@@ -194,10 +194,12 @@ class ASTToTACTranslator:
         instructions: list[Instruction] = []
         instructions.append(Comment(f"Method {cls.name}.{method.name}"))
 
-        result = self._translate_expr(method.body, ctx, instructions)
-
-        # Add return
-        instructions.append(Return(result))
+        if method.body is not None:
+            result = self._translate_expr(method.body, ctx, instructions)
+            instructions.append(Return(result))
+        else:
+            # Builtin methods have no body
+            instructions.append(Return())
 
         ctx.pop_scope()
 
@@ -257,21 +259,22 @@ class ASTToTACTranslator:
                 return Var(name)
 
             # --- Assignment ---
-            case AST.Assignment(instance=name, expr=rhs):
+            case AST.Assignment(instance=instance, expr=rhs):
                 rhs_val = self._translate_expr(rhs, ctx, instrs)
+                var_name = instance.name
 
                 # Check if it's a local variable
-                local = ctx.lookup(name)
+                local = ctx.lookup(var_name)
                 if local is not None:
                     if isinstance(local, Var):
                         instrs.append(Copy(local, rhs_val))
                     else:
                         # Reassigning a temp - create new binding
-                        ctx.define(name, rhs_val)
+                        ctx.define(var_name, rhs_val)
                     return rhs_val
 
                 # Must be an attribute
-                instrs.append(SetAttr(Var("self"), name, rhs_val))
+                instrs.append(SetAttr(Var("self"), var_name, rhs_val))
                 return rhs_val
 
             # --- Arithmetic ---

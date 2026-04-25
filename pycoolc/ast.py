@@ -426,7 +426,7 @@ class WhileLoop(Expr):
 class Case(Expr):
     """AST node for case expression 'case expr of branches esac'."""
 
-    def __init__(self, expr: AST, actions: tuple[tuple[str, str, AST], ...]) -> None:
+    def __init__(self, expr: AST, actions: tuple[Action, ...]) -> None:
         self.expr = expr
         self.actions = actions
 

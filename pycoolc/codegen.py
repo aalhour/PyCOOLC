@@ -232,7 +232,7 @@ class MIPSCodeGenerator:
             return OBJECT_CLASS
 
         # Search up the inheritance chain
-        current = class_name
+        current: str | None = class_name
         while current:
             for klass in self.program.classes:
                 if klass.name == current:
@@ -271,7 +271,7 @@ class MIPSCodeGenerator:
     def _get_ancestors(self, class_name: str) -> list[str]:
         """Get list of ancestors including the class itself."""
         result = [class_name]
-        current = class_name
+        current: str | None = class_name
 
         if self.program is None:
             return result
@@ -1761,6 +1761,9 @@ if __name__ == "__main__":
     # Parse
     parser = make_parser()
     ast = parser.parse(source)
+    if ast is None:
+        print("Error: Parsing failed", file=sys.stderr)
+        sys.exit(1)
 
     # Semantic analysis
     analyzer = make_semantic_analyser()
