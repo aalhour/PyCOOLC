@@ -16,6 +16,17 @@ from typing import Any
 import ply.lex as lex
 from ply.lex import TOKEN, LexToken
 
+MAX_STRING_LENGTH = 1024  # COOL §7.1
+MAX_INT = 2**31 - 1  # MIPS 32-bit signed integer
+
+
+class LexerError(Exception):
+    """Raised on COOL lexical errors per Cool Reference Manual §7.1, §10."""
+
+    def __init__(self, message: str, lineno: int | None = None):
+        self.lineno = lineno
+        super().__init__(message)
+
 
 class PyCoolLexer:
     """
@@ -67,6 +78,7 @@ class PyCoolLexer:
         self.tokens: tuple[str, ...] = ()
         self.reserved: Collection[str] = ()
         self.last_token: LexToken | None = None
+        self.errors: list[str] = []
 
         # Configuration - stored for rebuild
         self._debug = debug
@@ -233,12 +245,29 @@ class PyCoolLexer:
     t_ASSIGN = r"\<\-"  # <-
     t_ARROW = r"\=\>"  # =>
 
+    @TOKEN(r"\*\)")
+    def t_unmatched_comment_close(self, token):
+        """Unmatched `*)` outside a comment — COOL §10.3."""
+        raise LexerError(
+            f"Unmatched '*)' at line {token.lexer.lineno}",
+            token.lexer.lineno,
+        )
+
     @TOKEN(r"\d+")
     def t_INTEGER(self, token):
         """
         The Integer Primitive Type Token Rule.
+
+        MIPS targets 32-bit signed ints; reject values > 2^31 - 1.
         """
-        token.value = int(token.value)
+        value = int(token.value)
+        if value > MAX_INT:
+            raise LexerError(
+                f"Integer constant {token.value} exceeds 32-bit signed range "
+                f"(max {MAX_INT}) at line {token.lineno}",
+                token.lineno,
+            )
+        token.value = value
         return token
 
     @TOKEN(r"[A-Z][a-zA-Z_0-9]*")
@@ -261,14 +290,17 @@ class PyCoolLexer:
         Identifiers start with lowercase. Keywords are case-insensitive,
         so we check lowercase version against reserved words.
 
-        Per COOL spec: true/false are the only case-sensitive keywords
-        and must be exactly lowercase to be boolean literals.
+        Per COOL spec §10.4: the first letter of true/false must be lowercase,
+        but the trailing letters may be upper or lower case (e.g., 'tRuE' is a
+        valid boolean). Type-name forms ('True', 'TRUE') are caught by t_TYPE
+        and never reach this rule.
         """
-        if token.value in ("true", "false"):
+        lowered = token.value.lower()
+        if lowered in ("true", "false"):
             token.type = "BOOLEAN"
-            token.value = token.value == "true"
+            token.value = lowered == "true"
         else:
-            token.type = self.basic_reserved.get(token.value.lower(), "ID")
+            token.type = self.basic_reserved.get(lowered, "ID")
         return token
 
     @TOKEN(r"\n+")
@@ -278,8 +310,8 @@ class PyCoolLexer:
         """
         token.lexer.lineno += len(token.value)
 
-    # Ignore Whitespace Character Rule
-    t_ignore = " \t\r\f"
+    # Ignore Whitespace Character Rule (COOL §10.5: blank, \t, \f, \r, \v)
+    t_ignore = " \t\r\f\v"
 
     # ################# STATEFUL LEXICAL ANALYSIS ######################################
 
@@ -298,20 +330,29 @@ class PyCoolLexer:
         token.lexer.push_state("STRING")
         token.lexer.string_backslashed = False
         token.lexer.stringbuf = ""
+        token.lexer.string_start_line = token.lexer.lineno
 
     @TOKEN(r"\n")
     def t_STRING_newline(self, token):
         token.lexer.lineno += 1
         if not token.lexer.string_backslashed:
-            print("String newline not escaped")
-            token.lexer.skip(1)
-        else:
-            token.lexer.string_backslashed = False
+            raise LexerError(
+                f"Unterminated string constant at line {token.lexer.string_start_line} "
+                f"(unescaped newline at line {token.lexer.lineno - 1})",
+                token.lexer.string_start_line,
+            )
+        token.lexer.string_backslashed = False
 
     @TOKEN(r"\"")
     def t_STRING_end(self, token):
         if not token.lexer.string_backslashed:
             token.lexer.pop_state()
+            if len(token.lexer.stringbuf) > MAX_STRING_LENGTH:
+                raise LexerError(
+                    f"String constant too long ({len(token.lexer.stringbuf)} > {MAX_STRING_LENGTH}) "
+                    f"at line {token.lexer.string_start_line}",
+                    token.lexer.string_start_line,
+                )
             token.value = token.lexer.stringbuf
             token.type = "STRING"
             return token
@@ -321,6 +362,11 @@ class PyCoolLexer:
 
     @TOKEN(r"[^\n]")
     def t_STRING_anything(self, token):
+        if token.value == "\0":
+            raise LexerError(
+                f"String contains null character at line {token.lexer.lineno}",
+                token.lexer.lineno,
+            )
         if token.lexer.string_backslashed:
             if token.value == "b":
                 token.lexer.stringbuf += "\b"
@@ -346,8 +392,15 @@ class PyCoolLexer:
 
     # STRING error handler
     def t_STRING_error(self, token):
-        print(f"Illegal character! Line: {token.lineno}, character: {token.value[0]}")
-        token.lexer.skip(1)
+        raise LexerError(
+            f"Illegal character {token.value[0]!r} in string at line {token.lineno}",
+            token.lineno,
+        )
+
+    def t_STRING_eof(self, token):
+        """EOF inside string constant — COOL §10.2."""
+        line = getattr(token.lexer, "string_start_line", token.lexer.lineno)
+        raise LexerError(f"EOF in string constant starting at line {line}", line)
 
     ###
     # THE COMMENT STATE
@@ -355,6 +408,7 @@ class PyCoolLexer:
     def t_start_comment(self, token):
         token.lexer.push_state("COMMENT")
         token.lexer.comment_count = 0
+        token.lexer.comment_start_line = token.lexer.lineno
 
     @TOKEN(r"\(\*")
     def t_COMMENT_startanother(self, t):
@@ -374,12 +428,19 @@ class PyCoolLexer:
     def t_COMMENT_error(self, token):
         token.lexer.skip(1)
 
+    def t_COMMENT_eof(self, token):
+        """EOF inside (* ... *) comment — COOL §10.3."""
+        line = getattr(token.lexer, "comment_start_line", token.lexer.lineno)
+        raise LexerError(f"EOF in comment starting at line {line}", line)
+
     def t_error(self, token):
         """
         Error Handling and Reporting Rule.
         """
-        print(f"Illegal character! Line: {token.lineno}, character: {token.value[0]}")
-        token.lexer.skip(1)
+        raise LexerError(
+            f"Illegal character {token.value[0]!r} at line {token.lineno}",
+            token.lineno,
+        )
 
     # ################# END OF LEXICAL ANALYSIS RULES DECLARATION ######################
 

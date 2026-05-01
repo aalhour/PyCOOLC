@@ -191,14 +191,31 @@ def main() -> int:
 
     # Read all source files
     source_code = ""
+    file_sources: list[tuple[str, str]] = []
     for program in source_files:
         try:
-            source_code += Path(program).read_text(encoding="utf-8")
+            text = Path(program).read_text(encoding="utf-8")
+            file_sources.append((program, text))
+            source_code += text
         except FileNotFoundError:
             print(f"Error: File not found: {program}", file=sys.stderr)
             return 1
         except Exception as e:
             print(f"Error reading {program}: {e}", file=sys.stderr)
+            return 1
+
+    # Per-file lexical validation: COOL §10.2/10.3 forbid strings/comments
+    # crossing file boundaries. Lex each file in isolation; the EOF-state
+    # handlers raise LexerError if a file ends mid-string or mid-comment.
+    from pycoolc.lexer import LexerError, make_lexer
+
+    for path, text in file_sources:
+        try:
+            isolated = make_lexer()
+            isolated.input(text)
+            list(isolated)
+        except LexerError as e:
+            print(f"Error in {path}: {e}", file=sys.stderr)
             return 1
 
     # Determine output file name
