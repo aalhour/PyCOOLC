@@ -4,7 +4,7 @@ An [AOT](https://en.wikipedia.org/wiki/Ahead-of-time_compilation) compiler for *
 
 **COOL** is a small statically-typed object-oriented language that is type-safe and garbage collected. It has mainly 3 primitive data types: Integers, Strings and Booleans (`true`, `false`). It supports conditional and iterative control flow in addition to pattern matching. Everything in COOL is an expression! Many example COOL programs can be found under the [/examples](/examples/README.md) directory.
 
-A BNF-based specification of **COOL**'s Context-Free Grammar can be found at [/docs/Grammar.md](/docs/Grammar.md).
+A BNF-based specification of COOL's Context-Free Grammar can be found at [/docs/Grammar.md](/docs/Grammar.md). A single-page reference manual with syntax examples can be found [here](https://dijkstra.eecs.umich.edu/eecs483/crm/One%20Page.html).
 
 ## Contents
 
